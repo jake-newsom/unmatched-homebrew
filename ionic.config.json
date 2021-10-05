@@ -1,0 +1,7 @@
+{
+  "name": "unmatched-healthcounter",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "vue"
+}

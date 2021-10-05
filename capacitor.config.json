@@ -1,0 +1,6 @@
+{
+	"appId": "io.ionic.starter",
+	"appName": "unmatched-healthcounter",
+	"webDir": "dist",
+	"bundledWebRuntime": false
+}
