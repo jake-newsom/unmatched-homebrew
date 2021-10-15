@@ -1,6 +1,7 @@
 <template>
     <div id='modal-card-wrapper'>
         <card @click="flip" :card="card" :cardback="cardback"  :faceUp="cardFaceUp" :scale='2'></card>
+        <h5 v-if="origin=='hand'">Tap to Flip</h5>
     </div>
     <div id='card-options'>
         <div v-if="origin=='hand'">
@@ -88,7 +89,8 @@
     #modal-card-wrapper::v-deep(.card) {
         margin: 1rem auto;
     }
-    card{
-        margin: 1rem auto;
+    h5{
+        color: #000;
+        text-align: center;
     }
 </style>

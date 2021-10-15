@@ -59,7 +59,9 @@
                 <ion-col>
                     <div id='draw-pile' @click='drawCard'>
                         <div v-if='cards.length == 0' id="empty-draw-pile" ></div>
-                        <div v-else id='draw-pile-cardback' class='card' :style="{backgroundImage: 'url(' + character.cardback + ')'}">
+                        
+                        <div v-else id='draw-pile-cardback'>
+                            <card :card="cards[0]" :cardback="character.cardback"  :faceUp="false"></card>
                             <span>x{{cards.length}}</span>
                         </div>
                     </div>
