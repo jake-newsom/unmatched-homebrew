@@ -75,7 +75,7 @@
             <transition name="hand-drawer">
                 <ion-row nowrap v-if="!discardHandVisible" id="hand-wrapper" class='hand-drawer'>
                     <ion-col>
-                        <h3>Your Hand (x{{hand.length}})</h3>
+                        <h3>Your Hand (x{{hand.length}}) - <a @click='discardHandVisible = !discardHandVisible'>View Discards</a></h3>
                         <div class="horizontal-card-scroller" ref="cardScroller">
                             <card v-for="(card,index) in hand" 
                                 @click="viewCard(card, 'hand')"
@@ -94,7 +94,7 @@
             <transition name="hand-drawer">
                 <ion-row ref="discardHand" v-if="discardHandVisible" nowrap id="discard-pile-wrapper" class='hand-drawer'>
                     <ion-col>
-                        <h3>Discard Pile</h3>
+                        <h3>Discard Pile - <a @click='discardHandVisible = !discardHandVisible'>View Hand</a></h3>
                         <div class="horizontal-card-scroller" ref="cardScroller">
                             <card v-for="(card,index) in discard" 
                                 @click="viewCard(card, 'discard')"
