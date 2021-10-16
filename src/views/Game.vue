@@ -18,44 +18,54 @@
         </ion-toolbar>
       </ion-header>
 
-        <ion-grid>
+        <ion-grid style='height:40vh; overflow-y:scroll;'>
             <ion-row id="character-container">
-                <ion-col size='5'>
+                <ion-col>
                     <h3>{{character.name}}</h3>
-                </ion-col>
-                <ion-col size='7'>
-                    <healthbar :maxHealth="character.health || 1" v-on:heal="showHealAnimation" v-on:damage="showDamageAnimation"></healthbar>
+                    <graphic-healthbar 
+                        :maxHealth="character.health || 1" 
+                        :color="character.color"
+                        @heal="showHealAnimation" 
+                        @damage="showDamageAnimation"></graphic-healthbar>
                 </ion-col>
             </ion-row>
-            <ion-row id='ally-container' v-for='character,index in character.extraCharacters' v-bind:key='index'>
-                <ion-col size='5'>
-                    <h3>{{character.name}}</h3>
-                </ion-col>
-                <ion-col size='7'>
-                    <healthbar :maxHealth="character.health || 1" v-on:heal="showHealAnimation" v-on:damage="showDamageAnimation"></healthbar>
+            <ion-row id='ally-container' v-for='char,index in character.extraCharacters' v-bind:key='index'>
+                <ion-col>
+                    <h3>{{char.name}}</h3>
+                    <graphic-healthbar 
+                        :maxHealth="char.health || 1" 
+                        :color="character.color"
+                        @heal="showHealAnimation" 
+                        @damage="showDamageAnimation"></graphic-healthbar>
                 </ion-col>
             </ion-row>
             <ion-row v-if="character.sidekick.quantity > 0" class='sidekick-container'>
-                <ion-col size='5'> 
+                <ion-col>
                     <h3>{{character.sidekick.name}}</h3>
-                </ion-col>
-                <ion-col size="7">
-                    <healthbar v-if="character.sidekick.quantity == 1" :maxHealth="character.sidekick.health" v-on:heal="showHealAnimation" v-on:damage="showDamageAnimation"></healthbar>
+                    <graphic-healthbar 
+                        v-if="character.sidekick.quantity == 1"
+                        :maxHealth="character.sidekick.health || 1" 
+                        :color="character.color"
+                        @heal="showHealAnimation" 
+                        @damage="showDamageAnimation"></graphic-healthbar>
                     <ion-grid v-else class='sidekick-toggle-wrapper'>
                         <ion-row>
                             <ion-col v-for="(n,index) in character.sidekick.quantity" :key="index">
                                 <div class='sidekick-toggle' :ref="'sidekickToggle' + index" @click="toggleSidekick(index)"> 
-                                    <svg class="sidekick-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 28 28">
-                                    <path :fill='sidekicks[index] == true? character.color : "#ccc"'
-                                        fill-rule="evenodd" d="M18 20l1-2 2-2V9l-4-4h-6L7 9v7l2 2 1 3 1 1 6-1 1-1zm-8-10l-1 1v3l1 1h2l1-1v-2-1l-1-1h-2zm5 1l1-1h2l1 1v3l-1 1h-2l-1-1v-2-1zm-1 4l-1 4 2-1-1-3c0-1 0-1 0 0z" clip-rule="evenodd"/>
-                                    </svg>
+                                    <transition name="sidekick">
+                                        <ion-icon :icon="'assets/icon/skull.svg'" v-if="sidekicks[index]" :style='{"color":character.color}'></ion-icon>
+                                    </transition>
+                                    <transition name="sidekick">
+                                        <ion-icon :icon="'assets/icon/skull.svg'" v-if="!sidekicks[index]" :style='{"color":"#ccc"}'></ion-icon>
+                                    </transition>
                                 </div>
                             </ion-col>
                         </ion-row>
                     </ion-grid>
                 </ion-col>
             </ion-row>
-            <ion-row>
+        </ion-grid>
+            <!-- <ion-row>
                 <ion-col>
                     <div id='draw-pile' @click='drawCard'>
                         <div v-if='cards.length == 0' id="empty-draw-pile" ></div>
@@ -72,12 +82,15 @@
                         <card v-else :card="discard[0]" :cardback="character.cardback"  :faceUp="true"></card>
                     </div>
                 </ion-col>
-            </ion-row>
-
+            </ion-row> -->
+        <ion-grid>
             <transition name="hand-drawer">
                 <ion-row nowrap v-if="!discardHandVisible" id="hand-wrapper" class='hand-drawer'>
                     <ion-col>
                         <h3>Your Hand (x{{hand.length}}) - <a @click='discardHandVisible = !discardHandVisible'>View Discards</a></h3>
+                        <div class='empty' v-if="hand.length == 0">
+                            <span>No cards!</span>
+                        </div>
                         <div class="horizontal-card-scroller" ref="cardScroller">
                             <card v-for="(card,index) in hand" 
                                 @click="viewCard(card, 'hand')"
@@ -87,6 +100,7 @@
                                 :key="index"
                                 :scale="0.8"></card>
                         </div>
+                        <ion-button @click="drawCard">Draw (x{{cards.length}})</ion-button>
                         <ion-button v-if="hand.length > 0" @click="handFaceUp=!handFaceUp">Flip</ion-button>
                         <ion-button v-if="hand.length > 0" @click="hand=shuffle(hand)">Shuffle</ion-button>
                     </ion-col>
@@ -97,6 +111,9 @@
                 <ion-row ref="discardHand" v-if="discardHandVisible" nowrap id="discard-pile-wrapper" class='hand-drawer'>
                     <ion-col>
                         <h3>Discard Pile - <a @click='discardHandVisible = !discardHandVisible'>View Hand</a></h3>
+                        <div class='empty' v-if="discard.length == 0">
+                            <span>No discarded cards!</span>
+                        </div>
                         <div class="horizontal-card-scroller" ref="cardScroller">
                             <card v-for="(card,index) in discard" 
                                 @click="viewCard(card, 'discard')"
@@ -136,7 +153,7 @@ import { useRouter, useRoute } from 'vue-router';
 import StorageService from "@/services/storage.service";
 import Card from "@/components/Card.vue";
 import ViewCardModal from '@/components/ViewCardModal.vue';
-import Healthbar from "@/components/Healthbar.vue";
+import GraphicHealthbar from "@/components/GraphicHealthbar.vue";
 
 export default defineComponent({
   name: 'Game',
@@ -151,7 +168,7 @@ export default defineComponent({
     IonRow,
     IonCol,
     Card,
-    Healthbar
+    GraphicHealthbar
   },
 
   setup() {
@@ -173,6 +190,7 @@ export default defineComponent({
         health: 0,
         name: ""
       },
+      color: "",
       cards: []
     });
 
@@ -222,6 +240,10 @@ export default defineComponent({
             console.log("damage");
             (this.$refs.damageAnimation as HTMLElement).style.display = "block";
             setTimeout(() => { (this.$refs.damageAnimation as HTMLElement).style.display = "none"}, 500);
+        },
+
+        toggleSidekick(index: number){
+            this.sidekicks[index] = !this.sidekicks[index];
         },
         
       initializeDeck: function(){
@@ -335,8 +357,20 @@ export default defineComponent({
 
 #character-container h3, #ally-container h3, .sidekick-container h3{
     margin-top:0!important;
+    text-align:center;
+}
+.hand-drawer .empty {
+    height: 8rem;
+    text-align: center;
+    border: 2px dashed #ccc;
+    border-radius: 0.5rem;
+    line-height: 8rem;
+    color: #ccc;
 }
 
+.hand-drawer .empty span {
+    vertical-align: middle;
+}
 
 
 div#draw-pile-cardback {
@@ -372,7 +406,21 @@ div#draw-pile-cardback {
 
 
 
+.sidekick-toggle ion-icon {
+    font-size: 4rem;
+}
 
+.sidekick-toggle {
+    text-align: center;
+}
+
+.sidekick-toggle-wrapper {
+    padding: 0!important;
+}
+
+.sidekick-toggle-wrapper ion-col {
+    padding: 0!important;
+}
 
 
 
@@ -580,4 +628,10 @@ div#damage-animation {
 
 @-webkit-keyframes fade-out{0%{opacity:1}100%{opacity:0}}@keyframes fade-out{0%{opacity:1}100%{opacity:0}}
 .fade-out{-webkit-animation:fade-out .2s ease-out both;animation:fade-out .2s ease-out both}
+
+
+.sidekick-enter-active{
+    -webkit-animation:flip-in-ver-left .5s cubic-bezier(.25,.46,.45,.94) both;animation:flip-in-ver-left .5s cubic-bezier(.25,.46,.45,.94) both;
+}
+@-webkit-keyframes flip-in-ver-left{0%{-webkit-transform:rotateY(80deg);transform:rotateY(80deg);opacity:0}100%{-webkit-transform:rotateY(0);transform:rotateY(0);opacity:1}}@keyframes flip-in-ver-left{0%{-webkit-transform:rotateY(80deg);transform:rotateY(80deg);opacity:0}100%{-webkit-transform:rotateY(0);transform:rotateY(0);opacity:1}}
 </style>
