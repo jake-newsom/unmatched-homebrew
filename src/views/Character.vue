@@ -25,31 +25,40 @@
         
         <div class='card slit-in-vertical' :style="{ backgroundImage: 'url(' + character.cardback + ')' }"></div>
         <div id="healthbar-container" class="ion-padding">
-          <div id="character-container" class='ion-padding'> 
-            <h1 class='flip-in-hor-bottom'>{{character.name}}</h1>
-            <healthbar :maxHealth="character.health || 1" v-on:heal="showHealAnimation" v-on:damage="showDamageAnimation"></healthbar>
-          </div>
-          <div id='ally-container' class='ion-padding' v-for='character,index in character.extraCharacters' v-bind:key='index'>
-            <h3 class='flip-in-hor-bottom'>{{character.name}}</h3>
-            <healthbar :maxHealth="character.health || 1" v-on:heal="showHealAnimation" v-on:damage="showDamageAnimation"></healthbar>
-          </div>
-
-          <div v-if="character.sidekick.quantity > 0" class='sidekick-container ion-padding'>
-            <h3 class='fip-in-hor-bottom'>{{character.sidekick.name}}</h3>
-            <healthbar v-if="character.sidekick.quantity == 1" :maxHealth="character.sidekick.health" v-on:heal="showHealAnimation" v-on:damage="showDamageAnimation"></healthbar>
-            <ion-grid v-else class='sidekick-toggle-wrapper'>
-              <ion-row>
-                <ion-col v-for="(n,index) in character.sidekick.quantity" :key="index">
-                  <div class='sidekick-toggle' :ref="'sidekickToggle' + index" @click="toggleSidekick(index)"> 
-                    <svg class="sidekick-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 28 28">
-                      <path :fill='sidekicks[index] == true? character.color : "#ccc"'
-                        fill-rule="evenodd" d="M18 20l1-2 2-2V9l-4-4h-6L7 9v7l2 2 1 3 1 1 6-1 1-1zm-8-10l-1 1v3l1 1h2l1-1v-2-1l-1-1h-2zm5 1l1-1h2l1 1v3l-1 1h-2l-1-1v-2-1zm-1 4l-1 4 2-1-1-3c0-1 0-1 0 0z" clip-rule="evenodd"/>
-                    </svg>
-                  </div>
+          <ion-grid>
+            <ion-row id="character-container">
+                <ion-col>
+                    <h3>{{character.name}}</h3>
+                    <graphic-healthbar 
+                        :maxHealth="character.health || 1" 
+                        :color="character.color"
+                        @heal="showHealAnimation" 
+                        @damage="showDamageAnimation"></graphic-healthbar>
                 </ion-col>
-              </ion-row>
-            </ion-grid>
-          </div>
+            </ion-row>
+            <ion-row id='ally-container' v-for='char,index in character.extraCharacters' v-bind:key='index'>
+                <ion-col>
+                    <h3>{{char.name}}</h3>
+                    <graphic-healthbar 
+                        :maxHealth="char.health || 1" 
+                        :color="character.color"
+                        @heal="showHealAnimation" 
+                        @damage="showDamageAnimation"></graphic-healthbar>
+                </ion-col>
+            </ion-row>
+            <ion-row v-if="character.sidekick.quantity > 0" class='sidekick-container'>
+                <ion-col>
+                    <h3>{{character.sidekick.name}}</h3>
+                    <graphic-healthbar 
+                        v-if="character.sidekick.quantity == 1"
+                        :maxHealth="character.sidekick.health || 1" 
+                        :color="character.color"
+                        @heal="showHealAnimation" 
+                        @damage="showDamageAnimation"></graphic-healthbar>
+                    <sidekick-toggles v-else :count="character.sidekick.quantity" :color="character.color"></sidekick-toggles>
+                </ion-col>
+            </ion-row>
+          </ion-grid>
 
           
           <ion-button @click='startGame' expand="block" fill="outline" >Start a Game</ion-button>
@@ -57,18 +66,7 @@
         </div>
       </div>
 
-      <div ref="healingAnimation" class='squares'>
-        <div class='square'></div>
-        <div class='square'></div>
-        <div class='square'></div>
-        <div class='square'></div>
-        <div class='square'></div>
-        <div class='square'></div>
-        <div class='square'></div>
-        <div class='square'></div>
-        <div class='square'></div>
-        <div class='square'></div>
-      </div>
+      <heal-animation ref="healAnimation"></heal-animation>
     </ion-content>
   </ion-page>
 </template>
@@ -78,8 +76,11 @@ import { IonContent, IonHeader, IonPage, IonToolbar, IonBackButton, IonButtons, 
         IonGrid, IonCol, IonRow } from '@ionic/vue';
 import { defineComponent, ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import Healthbar from "@/components/Healthbar.vue";
+import GraphicHealthbar from "@/components/GraphicHealthbar.vue";
 import StorageService from "@/services/storage.service";
+
+import HealAnimation from "@/components/effects/Heal.vue";
+import SidekickToggles from "@/components/ui/SidekickToggles.vue"
 
 export default defineComponent({
   name: 'Character',
@@ -88,13 +89,15 @@ export default defineComponent({
     IonHeader,
     IonPage,
     IonToolbar,
-    Healthbar,
+    GraphicHealthbar,
     IonBackButton,
     IonButtons,
     IonButton,
     IonGrid,
     IonCol,
-    IonRow
+    IonRow,
+    HealAnimation,
+    SidekickToggles
   },
 
   setup() {
@@ -110,7 +113,8 @@ export default defineComponent({
         quantity: 0,
         health: 0,
         name: ""
-      }
+      },
+      color:"#FFFFFF"
     });
 
     const sidekicks = ref<boolean[]>([]);
@@ -126,31 +130,17 @@ export default defineComponent({
       console.log(this.id);
       this.character = await this.storage.get("character-" + this.id);
       console.log(this.character);
-
-      if(this.character.sidekick.quantity > 0){
-        for(let i = 0; i < this.character.sidekick.quantity; i++){
-          this.sidekicks.push(true);
-        }
-      }
   },
 
   methods:{
     showHealAnimation(){
-      (this.$refs.healingAnimation as HTMLElement).style.visibility = "visible";
-      setTimeout(()=>{ (this.$refs.healingAnimation as HTMLElement).style.visibility = "hidden"; }, 1000);
+      (this.$refs.healAnimation as any).play();
     },
 
     showDamageAnimation(){
       console.log("damage");
       (this.$refs.damageAnimation as HTMLElement).style.display = "block";
       setTimeout(() => { (this.$refs.damageAnimation as HTMLElement).style.display = "none"}, 500);
-    },
-
-    toggleSidekick(index: number){
-      this.sidekicks[index] = !this.sidekicks[index];
-
-      (this.$refs["sidekickToggle" + index] as HTMLElement).classList.add("flip-in-hor-bottom");
-      setTimeout(() => { (this.$refs["sidekickToggle" + index] as HTMLElement).classList.remove("flip-in-hor-bottom"); }, 500);
     },
 
     startGame(){
@@ -221,116 +211,6 @@ ion-page{
 
 
 
-.squares {
-  height: 100%;
-  display: -webkit-box;
-  display: flex;
-  justify-content: space-around;
-  overflow: hidden;
-    position: absolute;
-    bottom: 0;
-    width: 100%;
-    height: 100%;
-    visibility: hidden;
-    z-index:-1;
-}
-
-.square {
-  -webkit-animation: squares 1.5s linear infinite;
-          animation: squares 1.5s linear infinite;
-  align-self: flex-end;
-  width: 0.75em;
-  height: 2em;
-  -webkit-transform: translateY(100%);
-          transform: translateY(100%);
-  background: #51f542;
-}
-.square::after{
-  content:"";
-  position:absolute;
-  height:0.75em;
-  width:2em;
-  background:#51f542;
-  top:0.625em;
-  left:-.625em;
-}
-.square:nth-child(2) {
-  -webkit-animation-delay: 1s;
-          animation-delay: 1s;
-  -webkit-animation-duration: 3s;
-          animation-duration: 3s;
-  -webkit-filter: blur(5px);
-}
-.square:nth-child(3) {
-  -webkit-animation-delay: 1.5s;
-          animation-delay: 1.5s;
-  -webkit-animation-duration: 2s;
-          animation-duration: 2s;
-  -webkit-filter: blur();
-}
-.square:nth-child(4) {
-  -webkit-animation-delay: 0.5s;
-          animation-delay: 0.5s;
-  -webkit-filter: blur(3px);
-  -webkit-animation-duration: 2.4s;
-          animation-duration: 2.4s;
-}
-.square:nth-child(5) {
-  -webkit-animation-delay: 4s;
-          animation-delay: 4s;
-  -webkit-filter: blur(2px);
-  -webkit-animation-duration: 3.2s;
-          animation-duration: 3.2s;
-}
-.square:nth-child(6) {
-  -webkit-animation-delay: 2s;
-          animation-delay: 2s;
-  -webkit-filter: blur(1px);
-  -webkit-animation-duration: 1.7s;
-          animation-duration: 1.7s;
-}
-.square:nth-child(7) {
-  -webkit-filter: blur(2.5px);
-  -webkit-animation-duration: 3.2ss;
-          animation-duration: 3.2s;
-}
-.square:nth-child(8) {
-  -webkit-animation-delay: 5s;
-          animation-delay: 5s;
-  -webkit-filter: blur(6px);
-  -webkit-animation-duration: 4s;
-          animation-duration: 4s;
-}
-.square:nth-child(9) {
-  -webkit-filter: blur(0.5px);
-  -webkit-animation-duration: 2.2s;
-          animation-duration: 2.2s;
-}
-.square:nth-child(9) {
-  -webkit-animation-delay: 6s;
-          animation-delay: 6s;
-  -webkit-filter: blur(0.5px);
-  -webkit-animation-duration: 3.8s;
-          animation-duration: 3.8s;
-}
-
-@-webkit-keyframes squares {
-  from {
-    -webkit-transform: translateY(100%);
-            transform: translateY(100%);
-    opacity:1;
-  }
-  to {
-    -webkit-transform: translateY(calc(-100vh + -100%))  ;
-            transform: translateY(calc(-100vh + -100%)) ;
-            transform: translateY(100%) ;
-  }
-  to {
-    -webkit-transform: translateY(calc(-100vh + -100%)) ;
-            transform: translateY(calc(-100vh + -100%)) ;
-    opacity:0;
-  }
-}
 
 
 .slit-in-vertical {
@@ -490,5 +370,7 @@ div#damage-animation {
 
 @-webkit-keyframes fade-out{0%{opacity:1}100%{opacity:0}}@keyframes fade-out{0%{opacity:1}100%{opacity:0}}
 .fade-out{-webkit-animation:fade-out .2s ease-out both;animation:fade-out .2s ease-out both}
+
+
 
 </style>

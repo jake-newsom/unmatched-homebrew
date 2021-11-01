@@ -61,15 +61,16 @@
 
 <script lang="ts">
 import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonList, IonItemSliding, IonItem, 
-    IonItemOptions, IonItemOption, IonIcon, IonFab, IonFabButton, alertController} from '@ionic/vue';
+    IonItemOptions, IonItemOption, IonIcon, IonFab, IonFabButton, alertController, loadingController} from '@ionic/vue';
 import { addOutline,trashOutline, createOutline } from 'ionicons/icons';
 import { defineComponent, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
-import axios from 'axios';
+// import axios from 'axios';
 
 
 import StorageService from "@/services/storage.service";
+import CardApiService from "@/services/cardapi.service";
 
 
 export default defineComponent({
@@ -94,6 +95,8 @@ export default defineComponent({
     const router = useRouter();
     const storage = StorageService;
     storage.init();
+
+    CardApiService.init();
 
     const characters = ref<any[]>([]);
 
@@ -128,12 +131,22 @@ export default defineComponent({
     },
 
     async importCharacter(url: string){
+      
+      const loading = await loadingController.create({
+          cssClass: 'deck-loader',
+          message: 'Loading Deck Data...',
+          duration: 30000,
+        });
+
+      await loading.present();
+
       const urlPieces = url.split("/");
       const id = urlPieces[urlPieces.length-1];
       console.log(id);
 
-      const response: any = await axios.get("https://api.codetabs.com/v1/proxy?quest=https://unmatched.cards/api/decks/" + id);
+      const response: any = await CardApiService.getDeck(id);
       console.log(response.data);
+      loading.dismiss();
 
       const character = this.parseCharacter(response.data);
       this.saveCharacter(character);
@@ -149,7 +162,8 @@ export default defineComponent({
         cardback: data.deck_data.appearance.cardbackUrl,
         extraCharacters: [] as any,
         sidekick: {} as any,
-        cards: [] as any
+        cards: [] as any,
+        ruleCards: [] as any
       };
 
       for(const e in data.deck_data.extraCharacters){
@@ -165,6 +179,10 @@ export default defineComponent({
           health: data.deck_data.sidekick.hp || 1,
           quantity: data.deck_data.sidekick.quantity
         };
+      }
+
+      if(data.deck_data.ruleCards.length > 0){
+        character.ruleCards = data.deck_data.ruleCards;
       }
 
       character.cards = data.deck_data.cards;

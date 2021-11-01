@@ -89,21 +89,26 @@ export default defineComponent({
 </script>
 
 <style>
+.healthbar-wrapper {
+    border: 0.15em solid #ababab;
+    border-radius: 2em;
+    background: #e2e2e2;
+}
 
 .healthbar-wrapper ion-icon {
     width: 10%;
     display: inline-block;
     vertical-align:middle;
+    padding: 0.4em 0;
 }
 
 .healthbar-wrapper .healthbar {
     width: 80%;
     display: inline-block;
     text-align: center;
-    background: #ccc;
+    background: #b7b5b5;
     border-radius: 3rem;
-    border: 0.2rem solid #a2a2a2;
-    padding: 0.2rem;
+    padding: 0.35rem;
     position:relative;
     overflow:hidden;
     vertical-align:middle;
@@ -113,6 +118,8 @@ export default defineComponent({
     font-weight:bold;
     z-index:10;
     position:relative;
+    color:#fff;
+    text-shadow: 0 0 6px #000, 0 0 3px #000;
 }
 
 .healthbar-filled {

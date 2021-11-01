@@ -1,43 +1,54 @@
 <template>
-    <transition name="card-flip">
-        <div @click="$emit('click')" v-if="!faceUp" class='card card-face-down' :style="cssScale">  </div>
-    </transition>
-
-    <transition name="card-flip">
-        <div @click="$emit('click')" v-if="faceUp" class='card card-face-up' :style="cssScale">
-            <div class='image-wrapper' :style="'background-image: url(' + card.imageUrl + ')'">
-                <div class='top-left-info-wrapper'>
-                    <div :class='"card-type-wrapper " + card.type'>
-                        <ion-icon :icon="'assets/icon/' + card.type + '.svg'" size="large"></ion-icon>
-                        {{card.value}}
+    <div class='card-wrapper'>
+        <transition name="card-flip" mode="out-in" appear>
+            <div @click="$emit('click')" key="facedown" v-if="!faceUp" class='card card-face-down' :class='classList' :style="cssScale">  </div>
+        </transition>
+        
+        <transition name="card-flip" mode="out-in" appear>
+            <div @click="$emit('click')" key="faceup" v-if="faceUp && !ruleCard" class='card card-face-up' :class='classList' :style="cssScale">
+                <div class='image-wrapper' :style="'background-image: url(' + card.imageUrl + ')'">
+                    <div class='top-left-info-wrapper'>
+                        <div :class='"card-type-wrapper " + card.type'>
+                            <ion-icon :icon="'assets/icon/' + card.type + '.svg'" size="large"></ion-icon>
+                            {{card.value}}
+                        </div>
+                        <div class='card-character-wrapper'>
+                            {{card.characterName}}
+                        </div>
+                        <div class='top-left-angle'></div>
                     </div>
-                    <div class='card-character-wrapper'>
-                        {{card.characterName}}
-                    </div>
-                    <div class='top-left-angle'></div>
+                </div>
+                <div class='info-wrapper'>
+                    <div v-if="card.boost > 0" class='boost-wrapper'>{{card.boost}}</div>
+                    <h3 class='card-title'>{{card.title}}</h3>
+                    <p v-if="card.basicText != ''">{{card.basicText}}</p>
+                    <p v-if="card.immediateText != '' && card.immediateText != null">
+                        <span>Immediately: </span>
+                        {{card.immediateText}}
+                    </p>
+                    <p v-if="card.duringText != '' && card.duringText != null">
+                        <span>During Combat: </span>
+                        {{card.duringText}}
+                    </p>
+                    <p v-if="card.afterText != '' && card.afterText != null">
+                        <span>After Combat: </span>
+                        {{card.afterText}}
+                    </p>
+                    <div class='card-count-wrapper'>x{{card.quantity}}</div>
                 </div>
             </div>
-            <div class='info-wrapper'>
-                <div v-if="card.boost > 0" class='boost-wrapper'>{{card.boost}}</div>
-                <h3 class='card-title'>{{card.title}}</h3>
-                <p v-if="card.basicText != ''">{{card.basicText}}</p>
-                <p v-if="card.immediateText != '' && card.immediateText != null">
-                    <span>Immediately: </span>
-                    {{card.immediateText}}
-                </p>
-                <p v-if="card.duringText != '' && card.duringText != null">
-                    <span>During Combat: </span>
-                    {{card.duringText}}
-                </p>
-                <p v-if="card.afterText != '' && card.afterText != null">
-                    <span>After Combat: </span>
-                    {{card.afterText}}
-                </p>
-                <div class='card-count-wrapper'>x{{card.quantity}}</div>
+        </transition>
+        <transition name="card-flip" mode="out-in" appear>
+
+            <div @click="$emit('click')" key="rulecard" v-if="faceUp && ruleCard" 
+                class='card card-face-up card-rulecard' 
+                :class='classList' 
+                :style="cssScale">
+                <div class='title-wrapper'>{{card.title}}</div>
+                <div class='content-wrapper'>{{card.content}}</div>
             </div>
-        </div>
-    </transition>
-    
+        </transition>
+    </div>
 </template>
 
 <script lang="ts">
@@ -67,6 +78,16 @@ export default defineComponent({
     scale: {
         type: Number,
         default: 1
+    },
+    class: {
+        type: String
+    },
+    ruleCard: {
+        type: Boolean,
+        default: false
+    },
+    color: {
+        type: String
     }
   },
 
@@ -79,7 +100,14 @@ export default defineComponent({
           if(!this.faceUp){
               data['background-image'] = 'url(' + this.cardback + ')';
           }
+
+          if(this.ruleCard){
+              data['background'] = this.color;
+          }
           return data;
+      },
+      classList: function(){
+          return [this.class];
       }
   }
 });
@@ -102,6 +130,21 @@ export default defineComponent({
 .card-face-down {
     background-size: cover;
     background-position: center;
+}
+
+.title-wrapper {
+    color: #fff;
+    border-bottom: calc(0.2em*var(--card-scale)) solid #fff;
+    padding: calc(0.4rem * var(--card-scale));
+    font-size: calc(0.8rem * var(--card-scale));
+    background: #000;
+}
+
+
+.content-wrapper {
+    white-space: break-spaces;
+    font-size: calc(0.7rem * var(--card-scale));
+    padding: calc(0.3rem * var(--card-scale));
 }
 
 .image-wrapper {
@@ -260,12 +303,15 @@ export default defineComponent({
 }
 
 
-
-.card-flip-enter-active{
-    -webkit-animation:flip-in-ver-right .5s cubic-bezier(.25,.46,.45,.94) both;animation:flip-in-ver-right .5s cubic-bezier(.25,.46,.45,.94) both;
+@-webkit-keyframes flip-in-ver-left{0%{-webkit-transform:rotateY(80deg);transform:rotateY(80deg);opacity:0}100%{-webkit-transform:rotateY(0);transform:rotateY(0);opacity:1}}@keyframes flip-in-ver-left{0%{-webkit-transform:rotateY(80deg);transform:rotateY(80deg);opacity:0}100%{-webkit-transform:rotateY(0);transform:rotateY(0);opacity:1}}
+.card-flip-enter-active{ 
+    -webkit-animation:flip-in-ver-left .5s cubic-bezier(.25,.46,.45,.94) both;animation:flip-in-ver-left .5s cubic-bezier(.25,.46,.45,.94) both
 }
-/* .card-flip-leave-active{
-    -webkit-animation:flip-in-ver-right .5s cubic-bezier(.25,.46,.45,.94) both reverse;animation:flip-in-ver-right .5s cubic-bezier(.25,.46,.45,.94) both reverse;
-} */
-@-webkit-keyframes flip-in-ver-right{0%{-webkit-transform:rotateY(-80deg);transform:rotateY(-80deg);opacity:0}100%{-webkit-transform:rotateY(0);transform:rotateY(0);opacity:1}}@keyframes flip-in-ver-right{0%{-webkit-transform:rotateY(-80deg);transform:rotateY(-80deg);opacity:0}100%{-webkit-transform:rotateY(0);transform:rotateY(0);opacity:1}}
+.card-flip-leave-active{
+    animation-duration:0s;
+    -webkit-animation-duration:0s;
+    transition-duration:0s;
+    -webkit-transition-duration: 0s;
+    display:none;
+}
 </style>

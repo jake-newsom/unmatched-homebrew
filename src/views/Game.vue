@@ -5,7 +5,13 @@
         <ion-buttons slot="start">
             <ion-back-button default-href="/"></ion-back-button>
         </ion-buttons>
-
+        <ion-title v-if="showCounter">
+            {{counterLabel}}: {{counter}}
+        </ion-title>
+        <ion-buttons slot="end" v-if="showCounter">
+            <ion-button @click="counter--"><ion-icon :icon="removeCircleOutline"></ion-icon></ion-button>
+            <ion-button @click="counter++"><ion-icon :icon="addCircleOutline"></ion-icon></ion-button>
+        </ion-buttons>
       </ion-toolbar>
     </ion-header>
     
@@ -48,73 +54,59 @@
                         :color="character.color"
                         @heal="showHealAnimation" 
                         @damage="showDamageAnimation"></graphic-healthbar>
-                    <ion-grid v-else class='sidekick-toggle-wrapper'>
-                        <ion-row>
-                            <ion-col v-for="(n,index) in character.sidekick.quantity" :key="index">
-                                <div class='sidekick-toggle' :ref="'sidekickToggle' + index" @click="toggleSidekick(index)"> 
-                                    <transition name="sidekick">
-                                        <ion-icon :icon="'assets/icon/skull.svg'" v-if="sidekicks[index]" :style='{"color":character.color}'></ion-icon>
-                                    </transition>
-                                    <transition name="sidekick">
-                                        <ion-icon :icon="'assets/icon/skull.svg'" v-if="!sidekicks[index]" :style='{"color":"#ccc"}'></ion-icon>
-                                    </transition>
-                                </div>
-                            </ion-col>
-                        </ion-row>
-                    </ion-grid>
+                    <sidekick-toggles v-else :count="character.sidekick.quantity" :color="character.color"></sidekick-toggles>
+                </ion-col>
+            </ion-row>
+            <ion-row v-if="hasruleCards">
+                <ion-col>
+                    <ion-button expand="block" size="small" @click='visibleHand="rules"'>View Rule Cards</ion-button>
                 </ion-col>
             </ion-row>
         </ion-grid>
-            <!-- <ion-row>
-                <ion-col>
-                    <div id='draw-pile' @click='drawCard'>
-                        <div v-if='cards.length == 0' id="empty-draw-pile" ></div>
-                        
-                        <div v-else id='draw-pile-cardback'>
-                            <card :card="cards[0]" :cardback="character.cardback"  :faceUp="false"></card>
-                            <span>x{{cards.length}}</span>
-                        </div>
-                    </div>
-                </ion-col>
-                <ion-col>
-                    <div id='discard-pile' @click='discardHandVisible = !discardHandVisible'>
-                        <div v-if='discard.length == 0' id="empty-discard-pile">No Discards</div>
-                        <card v-else :card="discard[0]" :cardback="character.cardback"  :faceUp="true"></card>
-                    </div>
-                </ion-col>
-            </ion-row> -->
+
         <ion-grid>
-            <transition name="hand-drawer">
-                <ion-row nowrap v-if="!discardHandVisible" id="hand-wrapper" class='hand-drawer'>
+            <ion-row>
+                <ion-col v-if="hasruleCards && pinnedRuleCard != null && pinnedRuleCard != undefined">
+                    <card
+                        :scale="0.8"
+                        :card="pinnedRuleCard"
+                        :color="character.color"
+                        :ruleCard="true"
+                        :cardback="character.cardback" 
+                        :faceUp="true"
+                        @click="viewCard(pinnedRuleCard, 'rules', true)">
+                    </card>
+                </ion-col>
+            </ion-row>
+            <transition-group name="hand-drawer" appear>
+                <ion-row nowrap v-if="visibleHand == 'hand'" id="hand-wrapper" class='hand-drawer'>
                     <ion-col>
-                        <h3>Your Hand (x{{hand.length}}) - <a @click='discardHandVisible = !discardHandVisible'>View Discards</a></h3>
+                        <h3>Your Hand (x{{hand.length}}) - <a @click='visibleHand="discard"'>View Discards</a></h3>
                         <div class='empty' v-if="hand.length == 0">
                             <span>No cards!</span>
                         </div>
-                        <div class="horizontal-card-scroller" ref="cardScroller">
-                            <card v-for="(card,index) in hand" 
+                        <transition-group name="hand-list" tag="div" class="horizontal-card-scroller" ref="cardScroller">
+                            <card v-for="card in hand" 
                                 @click="viewCard(card, 'hand')"
                                 :card="card" 
                                 :cardback="character.cardback" 
                                 :faceUp="handFaceUp" 
-                                :key="index"
-                                :scale="0.8"></card>
-                        </div>
-                        <ion-button @click="drawCard">Draw (x{{cards.length}})</ion-button>
+                                :key="card.id"
+                                :scale="0.8"
+                                class="hand-list-item"></card>
+                        </transition-group>
+                        <ion-button :disabled="cards.length == 0" @click="drawCard">Draw (x{{cards.length}})</ion-button>
                         <ion-button v-if="hand.length > 0" @click="handFaceUp=!handFaceUp">Flip</ion-button>
-                        <ion-button v-if="hand.length > 0" @click="hand=shuffle(hand)">Shuffle</ion-button>
+                        <ion-button v-if="hand.length > 0" @click="shuffleHand">Shuffle</ion-button>
                     </ion-col>
                 </ion-row>
-            </transition>
-
-            <transition name="hand-drawer">
-                <ion-row ref="discardHand" v-if="discardHandVisible" nowrap id="discard-pile-wrapper" class='hand-drawer'>
+                <ion-row ref="discardHand" v-if="visibleHand == 'discard'" nowrap id="discard-pile-wrapper" class='hand-drawer'>
                     <ion-col>
-                        <h3>Discard Pile - <a @click='discardHandVisible = !discardHandVisible'>View Hand</a></h3>
+                        <h3>Discard Pile - <a @click='visibleHand="hand"'>View Hand</a></h3>
                         <div class='empty' v-if="discard.length == 0">
                             <span>No discarded cards!</span>
                         </div>
-                        <div class="horizontal-card-scroller" ref="cardScroller">
+                        <transition-group name="hand-list" tag="div" class="horizontal-card-scroller" ref="cardScroller">
                             <card v-for="(card,index) in discard" 
                                 @click="viewCard(card, 'discard')"
                                 :card="card" 
@@ -122,38 +114,48 @@
                                 :faceUp="true" 
                                 :key="index"
                                 :scale="0.8"></card>
+                        </transition-group>
+                    </ion-col>
+                </ion-row>
+                <ion-row ref="rulesHand" v-if="visibleHand == 'rules' && hasruleCards" nowrap id="discard-pile-wrapper" class='hand-drawer'>
+                    <ion-col>
+                        <h3>Rule Cards - <a @click='visibleHand="hand"'>View Hand</a></h3>
+                        <div class="horizontal-card-scroller" ref="cardScroller">
+                            <card v-for="(card,index) in character.ruleCards" 
+                                @click="viewCard(card, 'rules', true)"
+                                :card="card" 
+                                :cardback="character.cardback" 
+                                :faceUp="true" 
+                                :key="index"
+                                :ruleCard="true"
+                                :color="character.color"
+                                :scale="0.8"></card>
                         </div>
                     </ion-col>
                 </ion-row>
-            </transition>
+            </transition-group>
         </ion-grid>
         
         
         <div id='damage-animation' ref="damageAnimation" class='fade-out'></div>
-        <div ref="healingAnimation" class='squares'>
-            <div class='square'></div>
-            <div class='square'></div>
-            <div class='square'></div>
-            <div class='square'></div>
-            <div class='square'></div>
-            <div class='square'></div>
-            <div class='square'></div>
-            <div class='square'></div>
-            <div class='square'></div>
-            <div class='square'></div>
-        </div>
+        <heal-animation ref="healAnimation"></heal-animation>
     </ion-content>
   </ion-page>
 </template>
 
 <script lang="ts">
-import { IonContent, IonHeader, IonPage, IonToolbar, IonBackButton, IonButtons, IonGrid, IonRow, IonCol, modalController} from '@ionic/vue';
+import { IonContent, IonHeader, IonPage, IonToolbar, IonBackButton, IonButtons, IonGrid, IonRow, IonCol, 
+            IonButton, modalController, IonIcon, IonTitle} from '@ionic/vue';
 import { defineComponent, ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import StorageService from "@/services/storage.service";
 import Card from "@/components/Card.vue";
 import ViewCardModal from '@/components/ViewCardModal.vue';
 import GraphicHealthbar from "@/components/GraphicHealthbar.vue";
+import HealAnimation from "@/components/effects/Heal.vue";
+import SidekickToggles from "@/components/ui/SidekickToggles.vue";
+
+import { addCircleOutline, removeCircleOutline } from "ionicons/icons"
 
 export default defineComponent({
   name: 'Game',
@@ -167,14 +169,19 @@ export default defineComponent({
     IonGrid, 
     IonRow,
     IonCol,
+    IonButton,
     Card,
-    GraphicHealthbar
+    GraphicHealthbar,
+    HealAnimation,
+    SidekickToggles,
+    IonTitle,
+    IonIcon
   },
 
   setup() {
   
     const startingHandSize = ref(5);
-    const discardHandVisible = ref(false);
+    const visibleHand = ref("hand");
     const handFaceUp = ref(true);
     const route = useRoute();
     const router = useRouter();
@@ -195,6 +202,9 @@ export default defineComponent({
     });
 
     const sidekicks = ref<boolean[]>([]);
+    const counter = ref(0);
+    const showCounter = ref(false);
+    const counterLabel = ref("Counter");
 
     const id = ref("");
     id.value = route.params.id as string;
@@ -203,19 +213,14 @@ export default defineComponent({
     const hand = ref<Record<string,any>[]>([]);
     const discard = ref<Record<string,any>[]>([]);
 
-    return { router, character, storage, id, cards, hand, discard, startingHandSize, discardHandVisible, handFaceUp, sidekicks};
+    return { router, character, storage, id, cards, hand, discard, startingHandSize, visibleHand, handFaceUp, sidekicks,
+        addCircleOutline, removeCircleOutline, counter, counterLabel, showCounter};
   },
 
   async mounted(){
       /** load character from storage */
       this.character = await this.storage.get("character-" + this.id);
       console.log(this.character);
-
-      if(this.character.sidekick.quantity > 0){
-        for(let i = 0; i < this.character.sidekick.quantity; i++){
-          this.sidekicks.push(true);
-        }
-      }
 
       /** initialize deck */
       this.initializeDeck();      
@@ -232,8 +237,7 @@ export default defineComponent({
   methods: {
       
         showHealAnimation(){
-            (this.$refs.healingAnimation as HTMLElement).style.visibility = "visible";
-            setTimeout(()=>{ (this.$refs.healingAnimation as HTMLElement).style.visibility = "hidden"; }, 1000);
+            (this.$refs.healAnimation as any).play();
         },
 
         showDamageAnimation(){
@@ -242,11 +246,9 @@ export default defineComponent({
             setTimeout(() => { (this.$refs.damageAnimation as HTMLElement).style.display = "none"}, 500);
         },
 
-        toggleSidekick(index: number){
-            this.sidekicks[index] = !this.sidekicks[index];
-        },
         
       initializeDeck: function(){
+          let counterSuggestions: string[] = [];
           let cardCount = 0;
           for(let i = 0; i < this.character.cards.length; i++){
               for(let count = 0; count < this.character.cards[i].quantity; count++){
@@ -255,38 +257,70 @@ export default defineComponent({
                   this.cards.push(temp);
                   cardCount++;
               }
+            const tSuggestions = this.checkCardForCounters(this.character.cards[i]);
+            counterSuggestions.push(...tSuggestions);
           }
-            this.cards = this.shuffle(this.cards);
+
+          for(let i = 0; i < this.character.ruleCards.length; i++){
+              this.character.ruleCards[i].id = i;
+              this.character.ruleCards[i].pinned = false;
+            const tSuggestions = this.checkCardForCounters(this.character.ruleCards[i]);
+            counterSuggestions.push(...tSuggestions);
+          }
+            this.shuffleDeck();
+            this.shuffleHand();
+
+            counterSuggestions = counterSuggestions.filter((s) => { return s.constructor == String; });
+            if(counterSuggestions.length > 0){
+                this.counterLabel = counterSuggestions[0];
+                this.showCounter = true;
+            }
+            else{
+                this.showCounter = false;
+            }
 
           console.log(this.cards);
       }, 
 
-      shuffle: function(cards: any[]){
+      checkCardForCounters: function(card: any): string[]{
+          let counters: string[] = [];
 
-        for(let i = cards.length -1; i > 0; i--){
-            const j = Math.floor(Math.random() * (i + 1)); 
-            const temp = cards[i];
-            cards[i] = cards[j];
-            cards[j] = temp;
+          const checkFields = ["afterText", "basicText", "immediateText", "duringText", "content"];
+          for(const f in checkFields){
+              if(Object.keys(card).includes(checkFields[f]) && card[checkFields[f]] != null){
+                  const suggestions = [...card[ checkFields[f] ].matchAll(/(gain a )([a-zA-Z]*)/g)];
+                  counters = [counters, ...suggestions.map((s) => { return s[2]; })];
+              }
+          }
+
+          return counters;
+      },
+
+      shuffleHand: function(){
+        for(let i = this.hand.length - 1; i > 0; i--) {
+            const randomIndex = Math.floor(Math.random() * i);
+        
+            const temp = this.hand[i];
+            this.hand[i] = this.hand[randomIndex];
+            this.hand[randomIndex] = temp;
         }
+      },
 
-        return cards;
+      shuffleDeck: function(){
+          for(let i = this.cards.length - 1; i > 0; i--){
+              const randomIndex = Math.floor(Math.random() * i);
+
+              const temp = this.cards[i];
+              this.cards[i] = this.cards[randomIndex];
+              this.cards[randomIndex] = temp;
+          }
       },
 
       draw: function(){
         const card = this.cards.pop();
-
-        /** show card with tap to close */
-
         if(card != null){
             this.hand.unshift( card ); 
-        }
-
-        // setTimeout(() =>{ 
-        //     const hand = this.$refs.cardScroller as HTMLElement;
-        //     hand.scrollTo(hand.scrollWidth, 0);
-        // }, 300);
-        
+        }        
       },
 
 
@@ -311,7 +345,7 @@ export default defineComponent({
           this.draw();
       },
 
-      viewCard: async function(card: any, origin: string){
+      viewCard: async function(card: any, origin: string, ruleCard: boolean){
         const modal = await modalController
             .create({
                 component: ViewCardModal,
@@ -320,12 +354,14 @@ export default defineComponent({
                     card: card,
                     cardback: this.character.cardback,
                     faceUp: true,
-                    origin: origin
+                    origin: origin,
+                    color: this.character.color,
+                    ruleCard: ruleCard || false
                 },
             });
 
         modal.onDidDismiss().then((data: any) => {
-            if(data.data.played == true){
+            if(data.data.played == true && data.data.origin != "rules"){
                 if(data.data.origin == "hand" ){
                     /** Played card from hand, send to discard */           
                     this.handToDiscard(data.data.cardId);
@@ -334,11 +370,35 @@ export default defineComponent({
                     this.discardToHand(data.data.cardId);
                 }
             }
+
+            if(data.data.played && data.data.origin == "rules"){
+                for(let i = 0; i < this.character.ruleCards.length; i++){
+                    if(data.data.pinned && this.character.ruleCards[i].id != data.data.cardId){
+                        this.character.ruleCards[i].pinned = false;
+                    }
+                    else if(data.data.pinned && this.character.ruleCards[i].id == data.data.cardId){
+                        this.character.ruleCards[i].pinned = true;
+                    }
+                    else if(!data.data.pinned && this.character.ruleCards[i].id == data.data.cardId){
+                        this.character.ruleCards[i].pinned = false;
+                    }
+                }
+            }
         });
 
         return modal.present();
       }
 
+  },
+
+  computed: {
+      hasruleCards: function(): boolean{
+          return this.character != undefined && this.character.ruleCards != undefined && this.character.ruleCards.length > 0;
+      }, 
+
+      pinnedRuleCard: function(): any {
+          return this.character.ruleCards.filter((c: any) => { return c.pinned == true; })[0];
+      }
   }
 
 });
@@ -398,29 +458,14 @@ div#draw-pile-cardback {
 .horizontal-card-scroller {
     white-space: nowrap;
     overflow-x: scroll;
+    -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,1) 75%, rgba(0,0,0,0) 100%);
+    padding-right: 15vw;
 }
-.horizontal-card-scroller::v-deep(.card){
+.horizontal-card-scroller::v-deep(.card-wrapper){
     display: inline-block!important;
     margin-right: 1em;
 }
 
-
-
-.sidekick-toggle ion-icon {
-    font-size: 4rem;
-}
-
-.sidekick-toggle {
-    text-align: center;
-}
-
-.sidekick-toggle-wrapper {
-    padding: 0!important;
-}
-
-.sidekick-toggle-wrapper ion-col {
-    padding: 0!important;
-}
 
 
 
@@ -498,115 +543,6 @@ div#draw-pile-cardback {
 
 
 
-.squares {
-  height: 100%;
-  display: -webkit-box;
-  display: flex;
-  justify-content: space-around;
-  overflow: hidden;
-    position: absolute;
-    bottom: 0;
-    width: 100%;
-    height: 100%;
-    visibility: hidden;
-    z-index:-1;
-}
-
-.square {
-  -webkit-animation: squares 1.5s linear infinite;
-          animation: squares 1.5s linear infinite;
-  align-self: flex-end;
-  width: 0.75em;
-  height: 2em;
-  -webkit-transform: translateY(100%);
-          transform: translateY(100%);
-  background: #51f542;
-}
-.square::after{
-  content:"";
-  position:absolute;
-  height:0.75em;
-  width:2em;
-  background:#51f542;
-  top:0.625em;
-  left:-.625em;
-}
-.square:nth-child(2) {
-  -webkit-animation-delay: 1s;
-          animation-delay: 1s;
-  -webkit-animation-duration: 3s;
-          animation-duration: 3s;
-  -webkit-filter: blur(5px);
-}
-.square:nth-child(3) {
-  -webkit-animation-delay: 1.5s;
-          animation-delay: 1.5s;
-  -webkit-animation-duration: 2s;
-          animation-duration: 2s;
-  -webkit-filter: blur();
-}
-.square:nth-child(4) {
-  -webkit-animation-delay: 0.5s;
-          animation-delay: 0.5s;
-  -webkit-filter: blur(3px);
-  -webkit-animation-duration: 2.4s;
-          animation-duration: 2.4s;
-}
-.square:nth-child(5) {
-  -webkit-animation-delay: 4s;
-          animation-delay: 4s;
-  -webkit-filter: blur(2px);
-  -webkit-animation-duration: 3.2s;
-          animation-duration: 3.2s;
-}
-.square:nth-child(6) {
-  -webkit-animation-delay: 2s;
-          animation-delay: 2s;
-  -webkit-filter: blur(1px);
-  -webkit-animation-duration: 1.7s;
-          animation-duration: 1.7s;
-}
-.square:nth-child(7) {
-  -webkit-filter: blur(2.5px);
-  -webkit-animation-duration: 3.2ss;
-          animation-duration: 3.2s;
-}
-.square:nth-child(8) {
-  -webkit-animation-delay: 5s;
-          animation-delay: 5s;
-  -webkit-filter: blur(6px);
-  -webkit-animation-duration: 4s;
-          animation-duration: 4s;
-}
-.square:nth-child(9) {
-  -webkit-filter: blur(0.5px);
-  -webkit-animation-duration: 2.2s;
-          animation-duration: 2.2s;
-}
-.square:nth-child(9) {
-  -webkit-animation-delay: 6s;
-          animation-delay: 6s;
-  -webkit-filter: blur(0.5px);
-  -webkit-animation-duration: 3.8s;
-          animation-duration: 3.8s;
-}
-@-webkit-keyframes squares {
-  from {
-    -webkit-transform: translateY(100%);
-            transform: translateY(100%);
-    opacity:1;
-  }
-  to {
-    -webkit-transform: translateY(calc(-100vh + -100%))  ;
-            transform: translateY(calc(-100vh + -100%)) ;
-            transform: translateY(100%) ;
-  }
-  to {
-    -webkit-transform: translateY(calc(-100vh + -100%)) ;
-            transform: translateY(calc(-100vh + -100%)) ;
-    opacity:0;
-  }
-}
 
 
 
@@ -633,5 +569,19 @@ div#damage-animation {
 .sidekick-enter-active{
     -webkit-animation:flip-in-ver-left .5s cubic-bezier(.25,.46,.45,.94) both;animation:flip-in-ver-left .5s cubic-bezier(.25,.46,.45,.94) both;
 }
+.sidekick-leave-active{
+    animation-duration:0s;
+    -webkit-animation-duration:0s;
+    transition-duration:0s;
+    -webkit-transition-duration: 0s;
+    display:none;
+}
 @-webkit-keyframes flip-in-ver-left{0%{-webkit-transform:rotateY(80deg);transform:rotateY(80deg);opacity:0}100%{-webkit-transform:rotateY(0);transform:rotateY(0);opacity:1}}@keyframes flip-in-ver-left{0%{-webkit-transform:rotateY(80deg);transform:rotateY(80deg);opacity:0}100%{-webkit-transform:rotateY(0);transform:rotateY(0);opacity:1}}
+
+
+
+.hand-list-move {
+  transition: transform 1s;
+}
+
 </style>

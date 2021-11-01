@@ -1,7 +1,9 @@
 <template>
     <div id='modal-card-wrapper'>
-        <card @click="flip" :card="card" :cardback="cardback"  :faceUp="cardFaceUp" :scale='2'></card>
-        <h5 v-if="origin=='hand'">Tap to Flip</h5>
+        
+        <card @click="flip" :card="card" :cardback="cardback"  :faceUp="cardFaceUp" :scale='2' 
+            :ruleCard="ruleCard" :color="color"></card>
+        <h5 v-if="origin=='hand'">Tap Card to Flip</h5>
     </div>
     <div id='card-options'>
         <div v-if="origin=='hand'">
@@ -13,6 +15,7 @@
             <ion-button expand="block" @click="close">Close</ion-button>
         </div>
         <div v-if="origin != 'discard' && origin != 'hand'">
+            <ion-button expand="block" @click="toggleRuleCard(!card.pinned)">{{card.pinned? "Unpin" : "Pin"}}</ion-button>
             <ion-button expand="block" @click="close">Close</ion-button>
         </div>
 
@@ -53,6 +56,13 @@
             },
             origin: { 
                 type: String
+            },
+            ruleCard: {
+                type: Boolean,
+                default: false
+            },
+            color: {
+                type: String
             }
         },
 
@@ -60,6 +70,10 @@
             faceUp: function(value){
                 this.cardFaceUp = value;
             }
+        },
+
+        mounted(){
+            console.log(this.card);
         },
 
         methods: {
@@ -78,6 +92,14 @@
                     played: PLAYED_CARD, 
                     cardId: this.card.id,
                     origin: this.origin
+                });
+            },
+            toggleRuleCard: function(pinned: boolean){
+                modalController.dismiss({
+                    played: true,
+                    cardId: this.card.id,
+                    origin: "rules",
+                    pinned: pinned
                 });
             }
         }
