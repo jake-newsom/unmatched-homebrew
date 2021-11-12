@@ -8,6 +8,7 @@
     <div id='card-options'>
         <div v-if="origin=='hand'">
             <ion-button expand="block" @click="play">Play / Discard</ion-button>
+            <ion-button expand="block" @click="playToDrawPile">Add to Draw Pile</ion-button>
             <ion-button expand="block" @click="close">Close</ion-button>
         </div>
         <div v-if="origin=='discard'">
@@ -92,6 +93,14 @@
                     played: PLAYED_CARD, 
                     cardId: this.card.id,
                     origin: this.origin
+                });
+            },
+            playToDrawPile: function(){
+                modalController.dismiss({
+                    played: PLAYED_CARD,
+                    cardId: this.card.id,
+                    origin: this.origin, 
+                    sendTo: "draw"
                 });
             },
             toggleRuleCard: function(pinned: boolean){

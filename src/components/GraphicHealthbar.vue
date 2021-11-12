@@ -50,10 +50,6 @@ export default defineComponent({
     maxHealth: {
         type: Number,
         required: true
-    },
-    color: {
-        type: String,
-        required: true
     }
   },
 
@@ -67,7 +63,6 @@ export default defineComponent({
       healthbarFillStyle: function(): Record<string,any>{
           return {
               width: ((this.current / this.maxHealth) * 100) + "%",
-              background: this.color
           };
       }
   },
@@ -90,9 +85,9 @@ export default defineComponent({
 
 <style>
 .healthbar-wrapper {
-    border: 0.15em solid #ababab;
+    border: 0.15em solid #696969;
     border-radius: 2em;
-    background: #e2e2e2;
+    background: #313131;
 }
 
 .healthbar-wrapper ion-icon {
@@ -100,6 +95,7 @@ export default defineComponent({
     display: inline-block;
     vertical-align:middle;
     padding: 0.4em 0;
+    color: var(--ion-text-color);
 }
 
 .healthbar-wrapper .healthbar {
@@ -128,7 +124,7 @@ export default defineComponent({
     left: 0;
     height: 100%;
     border-radius: 3rem;
-    background: rgb(172, 106, 215);
+    background: var(--characterColor);
     box-shadow: inset 0 -5px 10px rgb(0 0 0 / 20%);
 }
 

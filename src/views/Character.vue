@@ -9,7 +9,7 @@
       </ion-toolbar>
     </ion-header>
     
-    <ion-content :fullscreen="true" >
+    <ion-content :fullscreen="true" :style='characterStyles'>
       <ion-header collapse="condense" :translucent="true" class="ion-no-border">
         <ion-toolbar class="ion-no-border">
             <ion-buttons slot="start">
@@ -21,9 +21,10 @@
       <div class='page-wrapper ion-text-center'>
         <div id='damage-animation' ref="damageAnimation" class='fade-out'></div>
 
-        <div class='deco slide-in-bck-center' :style="{background: character.color}"></div>
+
+        <div class='deco slide-in-bck-center'></div>
         
-        <div class='card slit-in-vertical' :style="{ backgroundImage: 'url(' + character.cardback + ')' }"></div>
+        <div class='card card-face-down slit-in-vertical'></div>
         <div id="healthbar-container" class="ion-padding">
           <ion-grid>
             <ion-row id="character-container">
@@ -31,7 +32,6 @@
                     <h3>{{character.name}}</h3>
                     <graphic-healthbar 
                         :maxHealth="character.health || 1" 
-                        :color="character.color"
                         @heal="showHealAnimation" 
                         @damage="showDamageAnimation"></graphic-healthbar>
                 </ion-col>
@@ -41,7 +41,6 @@
                     <h3>{{char.name}}</h3>
                     <graphic-healthbar 
                         :maxHealth="char.health || 1" 
-                        :color="character.color"
                         @heal="showHealAnimation" 
                         @damage="showDamageAnimation"></graphic-healthbar>
                 </ion-col>
@@ -52,16 +51,15 @@
                     <graphic-healthbar 
                         v-if="character.sidekick.quantity == 1"
                         :maxHealth="character.sidekick.health || 1" 
-                        :color="character.color"
                         @heal="showHealAnimation" 
                         @damage="showDamageAnimation"></graphic-healthbar>
-                    <sidekick-toggles v-else :count="character.sidekick.quantity" :color="character.color"></sidekick-toggles>
+                    <sidekick-toggles v-else :count="character.sidekick.quantity"></sidekick-toggles>
                 </ion-col>
             </ion-row>
           </ion-grid>
 
           
-          <ion-button @click='startGame' expand="block" fill="outline" >Start a Game</ion-button>
+          <ion-button @click='startGame' expand="block" >Start a Game</ion-button>
 
         </div>
       </div>
@@ -73,7 +71,7 @@
 
 <script lang="ts">
 import { IonContent, IonHeader, IonPage, IonToolbar, IonBackButton, IonButtons, IonButton,
-        IonGrid, IonCol, IonRow } from '@ionic/vue';
+        IonGrid, IonCol, IonRow, isPlatform } from '@ionic/vue';
 import { defineComponent, ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import GraphicHealthbar from "@/components/GraphicHealthbar.vue";
@@ -81,6 +79,10 @@ import StorageService from "@/services/storage.service";
 
 import HealAnimation from "@/components/effects/Heal.vue";
 import SidekickToggles from "@/components/ui/SidekickToggles.vue"
+import CardApiService from '@/services/cardapi.service';
+import { Capacitor } from '@capacitor/core';
+import { Directory } from '@capacitor/filesystem';
+import DownloadService from '@/services/download.service';
 
 export default defineComponent({
   name: 'Character',
@@ -114,7 +116,8 @@ export default defineComponent({
         health: 0,
         name: ""
       },
-      color:"#FFFFFF"
+      color:"#FFFFFF",
+      cardback: "",
     });
 
     const sidekicks = ref<boolean[]>([]);
@@ -122,7 +125,17 @@ export default defineComponent({
     const id = ref("");
     id.value = route.params.id as string;
 
-    return { router, character, storage, id, sidekicks};
+    const cardSheet = ref("");
+    const loadCardSheet = async () => {
+        cardSheet.value = Capacitor.convertFileSrc(await DownloadService.loadCardImages(id.value));
+        console.log(cardSheet.value);
+    }
+
+    if( Capacitor.isNativePlatform() ){
+        loadCardSheet();
+    }
+
+    return { router, character, storage, id, sidekicks, cardSheet};
   },
 
   async mounted(){
@@ -146,6 +159,51 @@ export default defineComponent({
     startGame(){
       this.router.push({ path: "/game/" + this.character.id });
     }
+  },
+
+  computed: {
+    cardback: function(): string {
+      if(this.character.cardback != undefined){
+        return this.character.cardback;
+      }
+      else{
+        return "assets/leather-texture.jpg";
+      }
+    },
+    cardCount: function(): number{
+      let count = 1;
+      if(this.character.ruleCards != undefined){
+        count += this.character.ruleCards.length; 
+      }
+      if(this.character.extraCharacters != undefined){
+        count += this.character.extraCharacters.length;
+      }
+      if(this.character.cards != undefined){
+        count += this.character.cards.length;
+      }
+
+      return count;
+    },
+    characterStyles: function(): Record<string,any> {
+      if(this.character != null){
+        return {
+          "--characterBackground": 'url(' + this.cardback + ')',
+          "--characterColor": this.character.color,
+          "--cards": 'url(' + this.cardSheet + ')',
+          "--cardCount": this.cardCount
+        };
+      }
+      
+      return {};
+    }
+  },
+
+  watch: {
+    characterStyles(){      
+      for(const key in this.characterStyles) {
+        document.body.style.setProperty(key, this.characterStyles[key]);
+      }
+    }, 
   }
 
 });
@@ -158,6 +216,7 @@ ion-button.button-block {
 }
 
 ion-toolbar {
+  --ion-toolbar-color	: #222!important;
   --background:transparent;
   --ion-color-base: transparent!important;
   box-shadow:none!important;
@@ -187,6 +246,7 @@ ion-page{
   z-index:-1;
   margin-top: -25%;
   box-shadow: inset 0 -5px 20px rgb(0 0 0 / 30%);
+  background-color: var(--characterColor);
 }
 
 
@@ -217,18 +277,6 @@ ion-page{
 	-webkit-animation: slit-in-vertical 0.45s ease-out both;
 	animation: slit-in-vertical 0.45s ease-out both;
 }
-/* ----------------------------------------------
- * Generated by Animista on 2021-10-9 14:50:39
- * Licensed under FreeBSD License.
- * See http://animista.net/license for more info. 
- * w: http://animista.net, t: @cssanimista
- * ---------------------------------------------- */
-
-/**
- * ----------------------------------------
- * animation slit-in-vertical
- * ----------------------------------------
- */
 @-webkit-keyframes slit-in-vertical {
   0% {
     -webkit-transform: translateZ(-800px) rotateY(90deg);
@@ -261,14 +309,6 @@ ion-page{
             transform: translateZ(0) rotateY(0);
   }
 }
-
-/* ----------------------------------------------
- * Generated by Animista on 2021-10-9 14:51:52
- * Licensed under FreeBSD License.
- * See http://animista.net/license for more info. 
- * w: http://animista.net, t: @cssanimista
- * ---------------------------------------------- */
-
 
 .slide-in-bck-center {
 	-webkit-animation: slide-in-bck-center 1.2s cubic-bezier(0.250, 0.460, 0.450, 0.940) both;
@@ -307,19 +347,6 @@ ion-page{
 
 
 
-
-/* ----------------------------------------------
- * Generated by Animista on 2021-10-9 20:20:5
- * Licensed under FreeBSD License.
- * See http://animista.net/license for more info. 
- * w: http://animista.net, t: @cssanimista
- * ---------------------------------------------- */
-
-/**
- * ----------------------------------------
- * animation flip-in-hor-bottom
- * ----------------------------------------
- */
 @-webkit-keyframes flip-in-hor-bottom {
   0% {
     -webkit-transform: rotateX(80deg);
@@ -361,12 +388,6 @@ div#damage-animation {
     width: 100%;
     height: 100%;
 }
-/* ----------------------------------------------
- * Generated by Animista on 2021-10-11 17:32:48
- * Licensed under FreeBSD License.
- * See http://animista.net/license for more info. 
- * w: http://animista.net, t: @cssanimista
- * ---------------------------------------------- */
 
 @-webkit-keyframes fade-out{0%{opacity:1}100%{opacity:0}}@keyframes fade-out{0%{opacity:1}100%{opacity:0}}
 .fade-out{-webkit-animation:fade-out .2s ease-out both;animation:fade-out .2s ease-out both}

@@ -1,15 +1,47 @@
 /* Ionic Variables and Theming. For more info, please see:
 http://ionicframework.com/docs/theming/ */
 
+@font-face {   
+  font-family: 'Lato';    
+  src: url('../../public/assets/fonts/Lato-Thin.ttf');
+  font-weight: 100
+}
+@font-face {   
+  font-family: 'Lato';    
+  src: url('../../public/assets/fonts/Lato-Light.ttf');
+  font-weight: 300
+}
+@font-face {   
+  font-family: 'Lato';    
+  src: url('../../public/assets/fonts/Lato-Regular.ttf');
+  font-weight: 400
+}
+@font-face {   
+  font-family: 'Bebas';    
+  src: url('../../public/assets/fonts/BebasNeue-Regular.ttf');
+  font-weight: 400
+}
+
+
+
 /** Ionic CSS Variables **/
 :root {
+  --ion-background-color: #434343;
+  --ion-toolbar-color	: #e9cab3;
+  --ion-text-color	: #fff;
+  --ion-dark-text-color: #222;
+  
+
+  --ion-font-family: 'Lato';
+
+
   /** primary **/
-  --ion-color-primary: #3880ff;
-  --ion-color-primary-rgb: 56, 128, 255;
+  --ion-color-primary: #29777b;
+  --ion-color-primary-rgb: 41,119,123;
   --ion-color-primary-contrast: #ffffff;
-  --ion-color-primary-contrast-rgb: 255, 255, 255;
-  --ion-color-primary-shade: #3171e0;
-  --ion-color-primary-tint: #4c8dff;
+  --ion-color-primary-contrast-rgb: 255,255,255;
+  --ion-color-primary-shade: #24696c;
+  --ion-color-primary-tint: #3e8588;
 
   /** secondary **/
   --ion-color-secondary: #3dc2ff;
@@ -83,12 +115,12 @@ http://ionicframework.com/docs/theming/ */
    */
 
   body {
-    --ion-color-primary: #428cff;
-    --ion-color-primary-rgb: 66,140,255;
+    --ion-color-primary: #29777b;
+    --ion-color-primary-rgb: 41,119,123;
     --ion-color-primary-contrast: #ffffff;
     --ion-color-primary-contrast-rgb: 255,255,255;
-    --ion-color-primary-shade: #3a7be0;
-    --ion-color-primary-tint: #5598ff;
+    --ion-color-primary-shade: #24696c;
+    --ion-color-primary-tint: #3e8588;
 
     --ion-color-secondary: #50c8ff;
     --ion-color-secondary-rgb: 80,200,255;
@@ -233,4 +265,8 @@ http://ionicframework.com/docs/theming/ */
 
     --ion-card-background: #1e1e1e;
   } */
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Bebas'
 }

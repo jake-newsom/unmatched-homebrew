@@ -1,6 +1,6 @@
 {
 	"appId": "com.jakenewsom.unmatchedtracker",
-	"appName": "unmatched-healthcounter",
+	"appName": "Unmatched Homebrew",
 	"webDir": "dist",
 	"bundledWebRuntime": false
 }

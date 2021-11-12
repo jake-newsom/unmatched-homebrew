@@ -4,7 +4,7 @@
             <ion-col v-for="(n,index) in sidekicks.length" :key="index">
                 <div class='sidekick-toggle' :ref="'sidekickToggle' + index" @click="sidekicks[index] = !sidekicks[index]"> 
                     <transition-group name="sidekick">
-                        <ion-icon :icon="'assets/icon/skull.svg'" v-if="sidekicks[index]" :style='characterColor'></ion-icon>
+                        <ion-icon :icon="'assets/icon/skull.svg'" v-if="sidekicks[index]"></ion-icon>
                         <ion-icon :icon="'assets/icon/skull.svg'" v-if="!sidekicks[index]" style='color:#ccc;'></ion-icon>
                     </transition-group>
                 </div>
@@ -29,10 +29,6 @@ export default defineComponent({
       "count": {
           type: Number,
           required: true
-      },
-      "color": {
-          type: String,
-          required: true
       }
   },
 
@@ -43,11 +39,9 @@ export default defineComponent({
       }
   },
 
-  computed: {
-      characterColor(){
-          return {
-              "color": this.color
-          }
+  watch: {
+      count(value: any){
+          this.sidekicks = new Array(value).fill(true);
       }
   }
 });
@@ -58,6 +52,7 @@ export default defineComponent({
 
 .sidekick-toggle ion-icon {
     font-size: 4rem;
+    color: var(--characterColor);
 }
 
 .sidekick-toggle {

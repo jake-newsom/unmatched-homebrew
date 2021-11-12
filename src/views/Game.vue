@@ -15,7 +15,8 @@
       </ion-toolbar>
     </ion-header>
     
-    <ion-content :fullscreen="true">
+    <ion-content :fullscreen="true" :style='cardStyles'>
+        <img style="display:none!important;" :src="cardSheet"/>
       <ion-header collapse="condense">
         <ion-toolbar>
             <ion-buttons slot="start">
@@ -25,36 +26,76 @@
       </ion-header>
 
         <ion-grid style='height:40vh; overflow-y:scroll;'>
-            <ion-row id="character-container">
-                <ion-col>
+            <ion-row id="character-container" class='character-info-wrapper'>
+                <ion-col size="3">
+                    <ion-icon class="characterTypeIcon" :icon="'assets/icon/' + characterType(character.isRanged) + '.svg'"></ion-icon>
+                </ion-col>
+                <ion-col size="6" class='ion-text-center'>
                     <h3>{{character.name}}</h3>
+                </ion-col>
+                <ion-col class="ion-text-right" size="3">
+                    <h3><ion-icon class="characterMoveIcon" icon="assets/icon/move.svg"></ion-icon> {{character.move}}</h3>
+                </ion-col>
+            </ion-row>
+            <ion-row>
+                <ion-col class="ion-text-center">
+                    <ion-text>{{character.special}}</ion-text>
+                </ion-col>
+            </ion-row>
+            <ion-row>
+                <ion-col>
                     <graphic-healthbar 
                         :maxHealth="character.health || 1" 
-                        :color="character.color"
                         @heal="showHealAnimation" 
                         @damage="showDamageAnimation"></graphic-healthbar>
                 </ion-col>
             </ion-row>
-            <ion-row id='ally-container' v-for='char,index in character.extraCharacters' v-bind:key='index'>
-                <ion-col>
-                    <h3>{{char.name}}</h3>
-                    <graphic-healthbar 
-                        :maxHealth="char.health || 1" 
-                        :color="character.color"
-                        @heal="showHealAnimation" 
-                        @damage="showDamageAnimation"></graphic-healthbar>
-                </ion-col>
-            </ion-row>
+
+
+
+            <div id='ally-container'>
+                <ion-row v-for='char,index in character.extraCharacters' v-bind:key='index'>
+                    <ion-grid>
+                        <ion-row>
+                            <ion-col size="3">
+                                <ion-icon class="characterTypeIcon" :icon="'assets/icon/' + characterType(char.isRanged) + '.svg'"></ion-icon>
+                            </ion-col>
+                            <ion-col size="6">
+                                <h3>{{char.name}}</h3>
+                            </ion-col>
+                            <ion-col size="3">
+
+                            </ion-col>
+                        </ion-row>
+                        <ion-row>
+                            <ion-col>
+                                <graphic-healthbar 
+                                    :maxHealth="char.health || 1" 
+                                    @heal="showHealAnimation" 
+                                    @damage="showDamageAnimation"></graphic-healthbar>
+                            </ion-col>
+                        </ion-row>
+                    </ion-grid>
+                </ion-row>
+            </div>
             <ion-row v-if="character.sidekick.quantity > 0" class='sidekick-container'>
+                <ion-col size="3">
+                    <ion-icon class="characterTypeIcon" :icon="'assets/icon/' + characterType(character.sidekick.isRanged) + '.svg'"></ion-icon>
+                </ion-col>
                 <ion-col>
                     <h3>{{character.sidekick.name}}</h3>
+                </ion-col>
+                <ion-col size="3"></ion-col>
+            </ion-row>
+            <ion-row v-if="character.sidekick.quantity > 0">
+                <ion-col>
                     <graphic-healthbar 
                         v-if="character.sidekick.quantity == 1"
                         :maxHealth="character.sidekick.health || 1" 
-                        :color="character.color"
                         @heal="showHealAnimation" 
                         @damage="showDamageAnimation"></graphic-healthbar>
-                    <sidekick-toggles v-else :count="character.sidekick.quantity" :color="character.color"></sidekick-toggles>
+                        
+                    <sidekick-toggles v-else :count="character.sidekick.quantity"></sidekick-toggles>
                 </ion-col>
             </ion-row>
             <ion-row v-if="hasruleCards">
@@ -67,12 +108,11 @@
         <ion-grid>
             <ion-row>
                 <ion-col v-if="hasruleCards && pinnedRuleCard != null && pinnedRuleCard != undefined">
+
                     <card
                         :scale="0.8"
                         :card="pinnedRuleCard"
-                        :color="character.color"
                         :ruleCard="true"
-                        :cardback="character.cardback" 
                         :faceUp="true"
                         @click="viewCard(pinnedRuleCard, 'rules', true)">
                     </card>
@@ -81,7 +121,7 @@
             <transition-group name="hand-drawer" appear>
                 <ion-row nowrap v-if="visibleHand == 'hand'" id="hand-wrapper" class='hand-drawer'>
                     <ion-col>
-                        <h3>Your Hand (x{{hand.length}}) - <a @click='visibleHand="discard"'>View Discards</a></h3>
+                        <h3>Hand (x{{hand.length}}) - <a @click='visibleHand="discard"'>View Discards</a></h3>
                         <div class='empty' v-if="hand.length == 0">
                             <span>No cards!</span>
                         </div>
@@ -89,7 +129,6 @@
                             <card v-for="card in hand" 
                                 @click="viewCard(card, 'hand')"
                                 :card="card" 
-                                :cardback="character.cardback" 
                                 :faceUp="handFaceUp" 
                                 :key="card.id"
                                 :scale="0.8"
@@ -102,15 +141,14 @@
                 </ion-row>
                 <ion-row ref="discardHand" v-if="visibleHand == 'discard'" nowrap id="discard-pile-wrapper" class='hand-drawer'>
                     <ion-col>
-                        <h3>Discard Pile - <a @click='visibleHand="hand"'>View Hand</a></h3>
+                        <h3>Discard - <a @click='visibleHand="hand"'>View Hand</a></h3>
                         <div class='empty' v-if="discard.length == 0">
                             <span>No discarded cards!</span>
                         </div>
-                        <transition-group name="hand-list" tag="div" class="horizontal-card-scroller" ref="cardScroller">
+                        <transition-group v-else name="hand-list" tag="div" class="horizontal-card-scroller" ref="cardScroller">
                             <card v-for="(card,index) in discard" 
                                 @click="viewCard(card, 'discard')"
                                 :card="card" 
-                                :cardback="character.cardback" 
                                 :faceUp="true" 
                                 :key="index"
                                 :scale="0.8"></card>
@@ -124,11 +162,9 @@
                             <card v-for="(card,index) in character.ruleCards" 
                                 @click="viewCard(card, 'rules', true)"
                                 :card="card" 
-                                :cardback="character.cardback" 
                                 :faceUp="true" 
                                 :key="index"
                                 :ruleCard="true"
-                                :color="character.color"
                                 :scale="0.8"></card>
                         </div>
                     </ion-col>
@@ -145,7 +181,7 @@
 
 <script lang="ts">
 import { IonContent, IonHeader, IonPage, IonToolbar, IonBackButton, IonButtons, IonGrid, IonRow, IonCol, 
-            IonButton, modalController, IonIcon, IonTitle} from '@ionic/vue';
+            IonButton, modalController, IonIcon, IonTitle, IonText, loadingController} from '@ionic/vue';
 import { defineComponent, ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import StorageService from "@/services/storage.service";
@@ -156,6 +192,9 @@ import HealAnimation from "@/components/effects/Heal.vue";
 import SidekickToggles from "@/components/ui/SidekickToggles.vue";
 
 import { addCircleOutline, removeCircleOutline } from "ionicons/icons"
+
+import { Capacitor } from '@capacitor/core';
+import DownloadService from '@/services/download.service';
 
 export default defineComponent({
   name: 'Game',
@@ -175,7 +214,8 @@ export default defineComponent({
     HealAnimation,
     SidekickToggles,
     IonTitle,
-    IonIcon
+    IonIcon,
+    IonText
   },
 
   setup() {
@@ -188,6 +228,19 @@ export default defineComponent({
     const storage = StorageService;
     storage.init();
 
+    const id = ref("");
+    const cardSheet = ref("");
+    id.value = route.params.id as string;
+
+    const loadCardSheet = async () => {
+        cardSheet.value = Capacitor.convertFileSrc(await DownloadService.loadCardImages(id.value));
+        console.log(cardSheet.value);
+    }
+
+    if( Capacitor.isNativePlatform() ){
+        loadCardSheet();
+    }
+    
     const character = ref<Record<string,any>>({
       name: "",
       health: 0,
@@ -205,16 +258,15 @@ export default defineComponent({
     const counter = ref(0);
     const showCounter = ref(false);
     const counterLabel = ref("Counter");
+    const loader = ref<any>(null);
 
-    const id = ref("");
-    id.value = route.params.id as string;
 
     const cards = ref<Record<string,any>[]>([]);
     const hand = ref<Record<string,any>[]>([]);
     const discard = ref<Record<string,any>[]>([]);
 
     return { router, character, storage, id, cards, hand, discard, startingHandSize, visibleHand, handFaceUp, sidekicks,
-        addCircleOutline, removeCircleOutline, counter, counterLabel, showCounter};
+        addCircleOutline, removeCircleOutline, counter, counterLabel, showCounter, loader, cardSheet};
   },
 
   async mounted(){
@@ -231,10 +283,23 @@ export default defineComponent({
 
       console.log(this.hand);
 
+    //   this.loader = await loadingController.create({
+    //       cssClass: 'deck-loader',
+    //       message: 'Loading deck...',
+    //       duration: 30000,
+    //     });
+        
+    //   await this.loader.present();
   },
 
 
   methods: {
+
+      loadedImage() {
+          if(this.loadedImage != null){
+            this.loader.dismiss();
+          }
+      },
       
         showHealAnimation(){
             (this.$refs.healAnimation as any).play();
@@ -250,27 +315,44 @@ export default defineComponent({
       initializeDeck: function(){
           let counterSuggestions: string[] = [];
           let cardCount = 0;
+
+          let cardIndex = 0;
+
           for(let i = 0; i < this.character.cards.length; i++){
               for(let count = 0; count < this.character.cards[i].quantity; count++){
                   const temp = Object.assign({}, this.character.cards[i]);
                   temp.id = cardCount;
+                  temp.cardIndex = cardIndex;
                   this.cards.push(temp);
                   cardCount++;
               }
             const tSuggestions = this.checkCardForCounters(this.character.cards[i]);
             counterSuggestions.push(...tSuggestions);
+            cardIndex++;
+          }
+          cardIndex++; //for the main hero card
+
+          for(let i = 0; i < this.character.extraCharacters.length; i++){
+              this.character.extraCharacters[i].cardIndex = cardIndex;
+              cardIndex++;
           }
 
           for(let i = 0; i < this.character.ruleCards.length; i++){
               this.character.ruleCards[i].id = i;
               this.character.ruleCards[i].pinned = false;
+              this.character.ruleCards[i].cardIndex = cardIndex;
             const tSuggestions = this.checkCardForCounters(this.character.ruleCards[i]);
             counterSuggestions.push(...tSuggestions);
+            cardIndex++;
           }
             this.shuffleDeck();
             this.shuffleHand();
 
-            counterSuggestions = counterSuggestions.filter((s) => { return s.constructor == String; });
+            counterSuggestions.push(...this.checkStringForCounters(this.character.special));
+            counterSuggestions = counterSuggestions.filter((s) => { 
+                const common = ["BOOST", "ACTION", "LARGE", "SEPARATE"].includes(s);
+                return s.constructor == String && !common;
+            });
             if(counterSuggestions.length > 0){
                 this.counterLabel = counterSuggestions[0];
                 this.showCounter = true;
@@ -281,6 +363,12 @@ export default defineComponent({
 
           console.log(this.cards);
       }, 
+
+      checkStringForCounters: function(text: string): string[] {         
+        const caps = [...text.matchAll(/([A-Z]{2,})/g)];
+        const suggestions = caps.map((c) => { return c[0]; });
+        return suggestions;
+      },
 
       checkCardForCounters: function(card: any): string[]{
           let counters: string[] = [];
@@ -309,7 +397,6 @@ export default defineComponent({
       shuffleDeck: function(){
           for(let i = this.cards.length - 1; i > 0; i--){
               const randomIndex = Math.floor(Math.random() * i);
-
               const temp = this.cards[i];
               this.cards[i] = this.cards[randomIndex];
               this.cards[randomIndex] = temp;
@@ -332,6 +419,14 @@ export default defineComponent({
               this.discard.unshift(card);
         }
       },
+      handToDraw: function(cardId: number){
+          const card = this.hand.filter(function(c){ return c.id == cardId; })[0];
+          this.hand = this.hand.filter(function(c){ return c.id != cardId; });
+          if(card != null){
+              this.cards.unshift(card);
+              this.shuffleDeck();
+        }
+      },
 
       discardToHand: function(cardId: number){
           const card = this.discard.filter(function(c){ return c.id == cardId; })[0];
@@ -352,7 +447,6 @@ export default defineComponent({
                 cssClass: 'view-card',
                 componentProps: {
                     card: card,
-                    cardback: this.character.cardback,
                     faceUp: true,
                     origin: origin,
                     color: this.character.color,
@@ -363,8 +457,13 @@ export default defineComponent({
         modal.onDidDismiss().then((data: any) => {
             if(data.data.played == true && data.data.origin != "rules"){
                 if(data.data.origin == "hand" ){
-                    /** Played card from hand, send to discard */           
-                    this.handToDiscard(data.data.cardId);
+                    if(data.data.sendTo != undefined && data.data.sendTo == "draw"){
+                        this.handToDraw(data.data.cardId);
+                    }
+                    else{
+                        /** Played card from hand, send to discard */           
+                        this.handToDiscard(data.data.cardId);
+                    }
                 }
                 else{
                     this.discardToHand(data.data.cardId);
@@ -387,6 +486,10 @@ export default defineComponent({
         });
 
         return modal.present();
+      },
+
+      characterType(isRanged: boolean){
+           return isRanged? "range" : "melee";
       }
 
   },
@@ -398,13 +501,60 @@ export default defineComponent({
 
       pinnedRuleCard: function(): any {
           return this.character.ruleCards.filter((c: any) => { return c.pinned == true; })[0];
+      },
+
+      heroType: function(): string {
+          return this.character.isRanged? "range" : "melee";
+      },
+      
+
+    cardCount: function(): number{
+        let count = 1;
+        if(this.character.ruleCards != undefined){
+            count += this.character.ruleCards.length; 
+        }
+        if(this.character.extraCharacters != undefined){
+            count += this.character.extraCharacters.length;
+        }
+        if(this.character.cards != undefined){
+            count += this.character.cards.length;
+        }
+
+        return count;
+        },
+      
+    cardStyles: function(): Record<string,any> {
+
+      if(this.character != null){
+        return {
+          "--characterBackground": 'url(' + this.character.cardback + ')',
+          "--characterColor": this.character.color,
+          "--cards": 'url(' + this.cardSheet + ')',
+          "--cardCount": this.cardCount
+        };
       }
+      
+      return {};
+    }
+  },
+
+  watch: {
+    characterStyles(){      
+      for(const key in this.cardStyles) {
+        document.body.style.setProperty(key, this.cardStyles[key]);
+      }
+    }
   }
 
 });
 </script>
 
 <style scoped>
+
+ion-content {
+    font-weight:300;
+    letter-spacing:1px;
+}
 
 .healthbar-wrapper::v-deep(.health-values) {
     font-size: 1.4em;
@@ -515,14 +665,16 @@ div#draw-pile-cardback {
     -webkit-border-top-right-radius: 2rem;
     -moz-border-radius-topleft: 2rem;
     -moz-border-radius-topright: 2rem;
-    border-top-left-radius: 2rem;
-    border-top-right-radius: 2rem;
+    border-top-left-radius: 1.2rem;
+    border-top-right-radius: 1.22rem;
     box-shadow: 0 -5px 20px rgba(0,0,0,0.3);
     position: absolute;
     bottom: 0;
     left: 0;
     width: 100%;
-    background:#fff;
+    background:#565656;
+    z-index: 10;
+    max-height: 50vh;
 }
 .hand-drawer h3{
     margin-top:0;
@@ -582,6 +734,20 @@ div#damage-animation {
 
 .hand-list-move {
   transition: transform 1s;
+}
+
+
+
+ion-icon.characterTypeIcon {
+    font-size: 6rem;
+    height: 2rem;
+    display: inline-block;
+}
+
+.character-info-wrapper h3 {
+    display: inline-block;
+    vertical-align: top;
+    padding: 0.2rem 0.8rem 0;
 }
 
 </style>

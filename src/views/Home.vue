@@ -1,19 +1,14 @@
 <template>
-  <ion-page>
-    <ion-header :translucent="true">
-      <ion-toolbar>
-        <ion-title>Saved Characters</ion-title>
-      </ion-toolbar>
+  <ion-page>    
+    <ion-header :translucent="true" class="ion-no-border">
     </ion-header>
     
     <ion-content :fullscreen="true">
-      <ion-header collapse="condense">
-        <ion-toolbar>
-          <ion-title size="large">Blank</ion-title>
-        </ion-toolbar>
-      </ion-header>
-    
-      <div id="container">        
+      <div class='ion-padding'>
+        <h1 id='header'>My Decks</h1>
+      </div>
+      <div id="container">   
+         
         <ion-list>
           <ion-item-sliding v-for="character,index in characters" 
             :style="{
@@ -22,14 +17,8 @@
             }" 
             v-bind:key="character.id">
 
-            <!-- <ion-item-options side="start">
-              <ion-item-option color="primary" expandable @click="editCharacter(character.id)">
-                <ion-icon size="large" :icon="createOutline"></ion-icon>
-              </ion-item-option>
-            </ion-item-options> -->
-
             <ion-item class='characterItem ion-padding'
-              @click="openCharacter(character.id)">
+              :router-link="'/character/' + character.id">
               <div class='character-item-wrapper ion-padding' >
                 <span class='character-name'>{{character.name}}</span>
               </div>
@@ -50,8 +39,8 @@
 
 
       
-    <ion-fab vertical="bottom" horizontal="end" slot="fixed">
-      <ion-fab-button @click="presentImportDialog">
+    <ion-fab vertical="bottom" horizontal="end" slot="fixed" color="primary">
+      <ion-fab-button @click="presentImportDialog" color="primary">
         <ion-icon :icon="addOutline"></ion-icon>
       </ion-fab-button>
     </ion-fab>
@@ -60,17 +49,15 @@
 </template>
 
 <script lang="ts">
-import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonList, IonItemSliding, IonItem, 
+import { IonContent, IonHeader, IonPage,IonList, IonItemSliding, IonItem, 
     IonItemOptions, IonItemOption, IonIcon, IonFab, IonFabButton, alertController, loadingController} from '@ionic/vue';
 import { addOutline,trashOutline, createOutline } from 'ionicons/icons';
 import { defineComponent, ref } from 'vue';
-import { useRouter } from 'vue-router';
-
-// import axios from 'axios';
 
 
 import StorageService from "@/services/storage.service";
 import CardApiService from "@/services/cardapi.service";
+import DownloadService from '@/services/download.service';
 
 
 export default defineComponent({
@@ -79,8 +66,6 @@ export default defineComponent({
     IonContent,
     IonHeader,
     IonPage,
-    IonTitle,
-    IonToolbar,
     IonItemSliding,
     IonItemOptions,
     IonItemOption,
@@ -92,7 +77,6 @@ export default defineComponent({
   },
 
   setup() {
-    const router = useRouter();
     const storage = StorageService;
     storage.init();
 
@@ -100,7 +84,7 @@ export default defineComponent({
 
     const characters = ref<any[]>([]);
 
-    return { router, characters, addOutline, storage, trashOutline, createOutline};
+    return { characters, addOutline, storage, trashOutline, createOutline};
   },
 
   mounted(){
@@ -144,58 +128,12 @@ export default defineComponent({
       const id = urlPieces[urlPieces.length-1];
       console.log(id);
 
-      const response: any = await CardApiService.getDeck(id);
-      console.log(response.data);
+      const character: any = await CardApiService.getDeck(id);
       loading.dismiss();
 
-      const character = this.parseCharacter(response.data);
       this.saveCharacter(character);
     },
 
-    parseCharacter(data: any){
-      console.log("parse data: ", data);
-      const character = {
-        id: data.version_id,
-        name: data.deck_data.hero.name,
-        health: data.deck_data.hero.hp,
-        color: data.deck_data.appearance.highlightColour,
-        cardback: data.deck_data.appearance.cardbackUrl,
-        extraCharacters: [] as any,
-        sidekick: {} as any,
-        cards: [] as any,
-        ruleCards: [] as any
-      };
-
-      for(const e in data.deck_data.extraCharacters){
-        const char = {} as any;
-        char.name = data.deck_data.extraCharacters[e].hero.name;
-        char.health = data.deck_data.extraCharacters[e].hero.hp;
-        character.extraCharacters.push(char);
-      }
-
-      if(data.deck_data.sidekick.quantity > 0){
-        character.sidekick = {
-          name: data.deck_data.sidekick.name,
-          health: data.deck_data.sidekick.hp || 1,
-          quantity: data.deck_data.sidekick.quantity
-        };
-      }
-
-      if(data.deck_data.ruleCards.length > 0){
-        character.ruleCards = data.deck_data.ruleCards;
-      }
-
-      character.cards = data.deck_data.cards;
-
-      return character;
-    },
-    openCharacter(id: string)  {
-      this.router.push({ path: "/character/" + id });
-    },
-
-    editCharacter(id: string) {
-      this.router.push({ path: "/edit/" + id });
-    },
 
     async deleteCharacter(character: any){
       
@@ -239,6 +177,12 @@ export default defineComponent({
         const loadedCharacters = [];
         for(const id in characterIds){
           const character = await this.storage.get("character-" + characterIds[id]);
+
+          if(await DownloadService.fileExists( characterIds[id] + ".png") == false ){
+            console.log("Download " + characterIds[id]);
+            DownloadService.startDownload( CardApiService.cardImagesBaseURL(characterIds[id]), characterIds[id] + ".png");
+          }
+
           loadedCharacters.push(character);
         }
         
@@ -257,6 +201,15 @@ export default defineComponent({
 </script>
 
 <style scoped>
+#header {
+  font-size:3rem;
+}
+
+ion-toolbar {
+  --background:transparent;
+  --ion-color-base: transparent!important;
+  box-shadow:none!important;
+}
 
 #container strong {
   font-size: 20px;
@@ -340,6 +293,7 @@ span.character-name {
     font-size: 1.2em;
     max-width: 68%;
     display: inline-block;
+    color: var(--ion-dark-text-color);
 }
 
 @keyframes popIn {
