@@ -9,7 +9,7 @@
       </ion-toolbar>
     </ion-header>
     
-    <ion-content :fullscreen="true" :style='characterStyles'>
+    <ion-content :fullscreen="true" :style='characterStyles' v-if="character != undefined">
       <ion-header collapse="condense" :translucent="true" class="ion-no-border">
         <ion-toolbar class="ion-no-border">
             <ion-buttons slot="start">
@@ -26,40 +26,13 @@
         
         <div class='card card-face-down slit-in-vertical'></div>
         <div id="healthbar-container" class="ion-padding">
-          <ion-grid>
-            <ion-row id="character-container">
-                <ion-col>
-                    <h3>{{character.name}}</h3>
-                    <graphic-healthbar 
-                        :maxHealth="character.health || 1" 
-                        @heal="showHealAnimation" 
-                        @damage="showDamageAnimation"></graphic-healthbar>
-                </ion-col>
-            </ion-row>
-            <ion-row id='ally-container' v-for='char,index in character.extraCharacters' v-bind:key='index'>
-                <ion-col>
-                    <h3>{{char.name}}</h3>
-                    <graphic-healthbar 
-                        :maxHealth="char.health || 1" 
-                        @heal="showHealAnimation" 
-                        @damage="showDamageAnimation"></graphic-healthbar>
-                </ion-col>
-            </ion-row>
-            <ion-row v-if="character.sidekick.quantity > 0" class='sidekick-container'>
-                <ion-col>
-                    <h3>{{character.sidekick.name}}</h3>
-                    <graphic-healthbar 
-                        v-if="character.sidekick.quantity == 1"
-                        :maxHealth="character.sidekick.health || 1" 
-                        @heal="showHealAnimation" 
-                        @damage="showDamageAnimation"></graphic-healthbar>
-                    <sidekick-toggles v-else :count="character.sidekick.quantity"></sidekick-toggles>
-                </ion-col>
-            </ion-row>
-          </ion-grid>
-
+          <character-slider 
+            :allCharacters="allCharacters"
+            @heal="showHealAnimation"
+            @damage="showDamageAnimation">
+          </character-slider>
           
-          <ion-button @click='startGame' expand="block" >Start a Game</ion-button>
+          <ion-button :router-link="'/game/' + id" expand="block" >Start a Game</ion-button>
 
         </div>
       </div>
@@ -70,19 +43,16 @@
 </template>
 
 <script lang="ts">
-import { IonContent, IonHeader, IonPage, IonToolbar, IonBackButton, IonButtons, IonButton,
-        IonGrid, IonCol, IonRow, isPlatform } from '@ionic/vue';
+import { IonContent, IonHeader, IonPage, IonToolbar, 
+          IonBackButton, IonButtons, IonButton } from '@ionic/vue';
 import { defineComponent, ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import GraphicHealthbar from "@/components/GraphicHealthbar.vue";
 import StorageService from "@/services/storage.service";
 
 import HealAnimation from "@/components/effects/Heal.vue";
-import SidekickToggles from "@/components/ui/SidekickToggles.vue"
-import CardApiService from '@/services/cardapi.service';
-import { Capacitor } from '@capacitor/core';
-import { Directory } from '@capacitor/filesystem';
-import DownloadService from '@/services/download.service';
+import CharacterSlider from "@/components/ui/CharacterSlider.vue"
+
+import { Deck } from "@/types/Decks";
 
 export default defineComponent({
   name: 'Character',
@@ -91,15 +61,11 @@ export default defineComponent({
     IonHeader,
     IonPage,
     IonToolbar,
-    GraphicHealthbar,
     IonBackButton,
     IonButtons,
     IonButton,
-    IonGrid,
-    IonCol,
-    IonRow,
     HealAnimation,
-    SidekickToggles
+    CharacterSlider
   },
 
   setup() {
@@ -107,43 +73,28 @@ export default defineComponent({
     const router = useRouter();
     const storage = StorageService;
     storage.init();
-    const character = ref<Record<string,any>>({
-      name: "",
-      health: 0,
-      extraCharacters:[],
-      sidekick: {
-        quantity: 0,
-        health: 0,
-        name: ""
-      },
-      color:"#FFFFFF",
-      cardback: "",
-    });
-
-    const sidekicks = ref<boolean[]>([]);
 
     const id = ref("");
     id.value = route.params.id as string;
 
-    const cardSheet = ref("");
-    const loadCardSheet = async () => {
-        cardSheet.value = Capacitor.convertFileSrc(await DownloadService.loadCardImages(id.value));
-        console.log(cardSheet.value);
+    const character = ref<Deck>();
+
+    const loadCharacter = async () => {
+      console.log("Load character " + id.value);
+      character.value = await storage.get("character-" + id.value) as Deck;
+      console.log("Character: ", character.value);
     }
+    loadCharacter();
 
-    if( Capacitor.isNativePlatform() ){
-        loadCardSheet();
-    }
 
-    return { router, character, storage, id, sidekicks, cardSheet};
+    const slideOpts = {
+      initialSlide: 0,
+      speed: 400
+    };
+
+    return { router, id, character, slideOpts};
   },
-
-  async mounted(){
-      /** load character from storage */
-      console.log(this.id);
-      this.character = await this.storage.get("character-" + this.id);
-      console.log(this.character);
-  },
+  
 
   methods:{
     showHealAnimation(){
@@ -155,31 +106,30 @@ export default defineComponent({
       (this.$refs.damageAnimation as HTMLElement).style.display = "block";
       setTimeout(() => { (this.$refs.damageAnimation as HTMLElement).style.display = "none"}, 500);
     },
-
-    startGame(){
-      this.router.push({ path: "/game/" + this.character.id });
-    }
   },
 
   computed: {
     cardback: function(): string {
-      if(this.character.cardback != undefined){
-        return this.character.cardback;
+      if(this.character != undefined && this.character.appearance.cardbackUrl != undefined){
+        return this.character.appearance.cardbackUrl;
       }
       else{
         return "assets/leather-texture.jpg";
       }
     },
     cardCount: function(): number{
-      let count = 1;
-      if(this.character.ruleCards != undefined){
-        count += this.character.ruleCards.length; 
-      }
-      if(this.character.extraCharacters != undefined){
-        count += this.character.extraCharacters.length;
-      }
-      if(this.character.cards != undefined){
-        count += this.character.cards.length;
+      let count = 0;
+      if(this.character != undefined){
+        count++;
+        if(this.character.ruleCards != undefined){
+          count += this.character.ruleCards.length; 
+        }
+        if(this.character.extraCharacters != undefined){
+          count += this.character.extraCharacters.length;
+        }
+        if(this.character.cards != undefined){
+          count += this.character.cards.length;
+        }
       }
 
       return count;
@@ -188,13 +138,34 @@ export default defineComponent({
       if(this.character != null){
         return {
           "--characterBackground": 'url(' + this.cardback + ')',
-          "--characterColor": this.character.color,
-          "--cards": 'url(' + this.cardSheet + ')',
+          "--characterColor": this.character.appearance.highlightColour,
           "--cardCount": this.cardCount
         };
       }
       
       return {};
+    },
+
+    allCharacters: function(): any {
+      if(this.character == undefined){
+        return [];
+      }
+
+      const mainChar = {
+        hero: this.character.hero,
+        sidekick: this.character.sidekick
+      }
+
+      const allChars = [];
+      allChars.push(mainChar);
+
+      if(this.character.extraCharacters != undefined){
+        for(let i = 0; i < this.character.extraCharacters.length; i++){
+          allChars.push(this.character.extraCharacters[i]);
+        }
+      }
+
+      return allChars;
     }
   },
 

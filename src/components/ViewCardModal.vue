@@ -1,11 +1,11 @@
 <template>
-    <div id='modal-card-wrapper'>
+    <div id='modal-card-wrapper' :style="cardbackStyle">
         
         <card @click="flip" :card="card" :cardback="cardback"  :faceUp="cardFaceUp" :scale='2' 
-            :ruleCard="ruleCard" :color="color"></card>
+            :ruleCard="ruleCard"></card>
         <h5 v-if="origin=='hand'">Tap Card to Flip</h5>
     </div>
-    <div id='card-options'>
+    <div id='card-options' :style="cardbackStyle">
         <div v-if="origin=='hand'">
             <ion-button expand="block" @click="play">Play / Discard</ion-button>
             <ion-button expand="block" @click="playToDrawPile">Add to Draw Pile</ion-button>
@@ -61,9 +61,6 @@
             ruleCard: {
                 type: Boolean,
                 default: false
-            },
-            color: {
-                type: String
             }
         },
 
@@ -75,6 +72,14 @@
 
         mounted(){
             console.log(this.card);
+        },
+
+        computed: {
+            cardbackStyle() {
+                return {
+                    "--cards": "url(" + this.cardback + ")"
+                };
+            }
         },
 
         methods: {

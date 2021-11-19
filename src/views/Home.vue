@@ -9,21 +9,21 @@
       </div>
       <div id="container">   
          
-        <ion-list>
+        <ion-list v-if="characters.length > 0">
           <ion-item-sliding v-for="character,index in characters" 
             :style="{
               '--animation-order':index, 
-              backgroundColor: shadeColor(character.color,40) 
+              backgroundColor: shadeColor(character.appearance.highlightColour,40) 
             }" 
             v-bind:key="character.id">
 
             <ion-item class='characterItem ion-padding'
               :router-link="'/character/' + character.id">
               <div class='character-item-wrapper ion-padding' >
-                <span class='character-name'>{{character.name}}</span>
+                <span class='character-name'>{{character.hero.name}}</span>
               </div>
-              <div class="deco" :style="{ backgroundColor: character.color }"></div>
-              <div class='card flip-in-ver-left' :style="{ '--animation-order':index, backgroundImage: 'url(' + character.cardback + ')' }"></div>
+              <div class="deco" :style="{ backgroundColor: character.appearance.highlightColour }"></div>
+              <div class='card flip-in-ver-left' :style="{ '--animation-order':index, backgroundImage: 'url(' + character.appearance.cardbackUrl + ')' }"></div>
             </ion-item>
 
             <ion-item-options side="end">
@@ -40,7 +40,7 @@
 
       
     <ion-fab vertical="bottom" horizontal="end" slot="fixed" color="primary">
-      <ion-fab-button @click="presentImportDialog" color="primary">
+      <ion-fab-button router-link="/search" color="primary">
         <ion-icon :icon="addOutline"></ion-icon>
       </ion-fab-button>
     </ion-fab>
@@ -58,6 +58,8 @@ import { defineComponent, ref } from 'vue';
 import StorageService from "@/services/storage.service";
 import CardApiService from "@/services/cardapi.service";
 import DownloadService from '@/services/download.service';
+import { Capacitor } from '@capacitor/core';
+import { Deck } from '@/types/Decks';
 
 
 export default defineComponent({
@@ -84,11 +86,13 @@ export default defineComponent({
 
     const characters = ref<any[]>([]);
 
-    return { characters, addOutline, storage, trashOutline, createOutline};
+    const currentDeckVersion = ref(1);
+
+    return { characters, addOutline, storage, trashOutline, createOutline, currentDeckVersion};
   },
 
-  mounted(){
-      this.loadCharacters();
+  ionViewDidEnter(){
+    this.loadCharacters();
   },
 
   methods: {
@@ -126,7 +130,6 @@ export default defineComponent({
 
       const urlPieces = url.split("/");
       const id = urlPieces[urlPieces.length-1];
-      console.log(id);
 
       const character: any = await CardApiService.getDeck(id);
       loading.dismiss();
@@ -149,8 +152,6 @@ export default defineComponent({
 
     async saveCharacter(character: any){
 
-      console.log(character);
-
       /** add to temp object */
       this.characters.push( character );
 
@@ -159,11 +160,10 @@ export default defineComponent({
       if(characterIds == null){
         characterIds = [];
       }
-      console.log(characterIds);
 
       characterIds.push(character.id);
-      await this.storage.set("characterIds", characterIds);
 
+      await this.storage.set("characterIds", [...new Set(characterIds)]);
       await this.storage.set("character-" + character.id, character);
           
     },
@@ -176,17 +176,29 @@ export default defineComponent({
 
         const loadedCharacters = [];
         for(const id in characterIds){
-          const character = await this.storage.get("character-" + characterIds[id]);
+          let character = await this.storage.get("character-" + characterIds[id]) as Deck;
 
-          if(await DownloadService.fileExists( characterIds[id] + ".png") == false ){
-            console.log("Download " + characterIds[id]);
-            DownloadService.startDownload( CardApiService.cardImagesBaseURL(characterIds[id]), characterIds[id] + ".png");
+          if(character.version == undefined || character.version < CardApiService.version()){
+            console.log("Character data outload, reload " + characterIds[id]);
+            this.saveCharacter( await CardApiService.getDeck(characterIds[id]) );
+            character = await this.storage.get("character-" + characterIds[id]) as Deck;
+          }
+
+          if(Capacitor.isNativePlatform()){
+            DownloadService.fileExists( characterIds[id] + ".png")
+              .then(exists => {
+                if(!exists){
+                  console.log("Download " + characterIds[id]);
+                  DownloadService.startDownload( CardApiService.cardImagesBaseURL(characterIds[id]), characterIds[id] + ".png");
+                }
+              });
           }
 
           loadedCharacters.push(character);
         }
         
         this.characters = loadedCharacters;
+        console.log("LOaded: ", this.characters);
       }
     }, 
 

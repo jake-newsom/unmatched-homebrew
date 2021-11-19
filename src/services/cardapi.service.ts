@@ -1,10 +1,15 @@
 import axios, {AxiosRequestConfig} from "axios";
 import DownloadService from "@/services/download.service";
+import { Capacitor } from "@capacitor/core";
 
-const proxy = "https://api.codetabs.com/v1/proxy";
+const proxy = "https://aws.mykcm.com/p.php";
 const host = "https://unmatched.cards/api/";
 
 const CardApiService = {
+    version() { 
+        return 1;
+    },
+
     cardImagesBaseURL(id: string, cache?: number){
         let url = "https://unmatched.cards/api/card_img/" + id + "?width=400&columns=1&duplicates=false&characters=true&rules=true&cardback=true";
         if(cache != undefined){
@@ -15,11 +20,13 @@ const CardApiService = {
     },
 
     init() {
-        axios.defaults.baseURL = proxy + "?quest=" + host;
+        axios.defaults.baseURL = proxy + "?url=" + host;
     },
 
     get(resource: string) {
-        return axios.get(resource);
+
+        console.log(axios.defaults.baseURL + encodeURIComponent(resource));
+        return axios.get(encodeURIComponent(resource));
     },
 
     post(resource: string, data: any) {
@@ -41,61 +48,30 @@ const CardApiService = {
     async getDeck(id: string){
         const response: any = await this.get("decks/" + id);
         const deck = response.data;
-        console.log("Parse data: ", deck);
 
-        /** start downloading card images */
-        this.downloadCardImages(id);
+        if(Capacitor.isNativePlatform()){
+            this.downloadCardImages(id);
+        }
 
         const character = {
             id: deck.version_id,
-            name: deck.deck_data.hero.name,
-            health: deck.deck_data.hero.hp,
-            isRanged: deck.deck_data.hero.isRanged,
-            move: deck.deck_data.hero.move,
-            special: deck.deck_data.hero.specialAbility,
-            color: deck.deck_data.appearance.highlightColour,
-            cardback: deck.deck_data.appearance.cardbackUrl,
-            extraCharacters: [] as any,
-            sidekick: {} as any,
-            cards: [] as any,
-            ruleCards: [] as any,
-            dateAdded: Date.parse(deck.updated_on)
+            version: this.version(),
+            ...deck.deck_data
         };
-
-        
-        for(const e in deck.deck_data.extraCharacters){
-            const char = {} as any;
-            char.name = deck.deck_data.extraCharacters[e].hero.name;
-            char.health = deck.deck_data.extraCharacters[e].hero.hp;
-            character.extraCharacters.push(char);
-        }
-
-        
-        if(deck.deck_data.sidekick.quantity > 0){
-            character.sidekick = {
-                name: deck.deck_data.sidekick.name,
-                health: deck.deck_data.sidekick.hp || 1,
-                quantity: deck.deck_data.sidekick.quantity,
-                isRanged: deck.deck_data.sidekick.isRanged || false
-            };
-        }
-
-        
-        if(deck.deck_data.ruleCards != undefined && deck.deck_data.ruleCards.length > 0){
-            character.ruleCards = deck.deck_data.ruleCards;
-        }
-
-        character.cards = deck.deck_data.cards;  
-
-
 
         return character;
     },
 
+
+    async searchDecks(query: string){
+        const response: any = await this.get("decks?sortBy=likes&sortDesc=true&perPage=30&currentPage=1&filter=" + query);
+        return response.data.decks;
+    },
+
+
     async downloadCardImages(id: string){
         const url = this.cardImagesBaseURL(id);
-        console.log("Download images from " + url);
-        DownloadService.startDownload(url, id + ".png");
+        DownloadService.startDownload(url, id + ".jpg");
     }
 
 

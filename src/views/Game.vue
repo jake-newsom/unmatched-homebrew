@@ -15,7 +15,7 @@
       </ion-toolbar>
     </ion-header>
     
-    <ion-content :fullscreen="true" :style='cardStyles'>
+    <ion-content :fullscreen="true" :style='cardStyles' v-if="character != undefined">
         <img style="display:none!important;" :src="cardSheet"/>
       <ion-header collapse="condense">
         <ion-toolbar>
@@ -25,90 +25,26 @@
         </ion-toolbar>
       </ion-header>
 
-        <ion-grid style='height:40vh; overflow-y:scroll;'>
-            <ion-row id="character-container" class='character-info-wrapper'>
-                <ion-col size="3">
-                    <ion-icon class="characterTypeIcon" :icon="'assets/icon/' + characterType(character.isRanged) + '.svg'"></ion-icon>
-                </ion-col>
-                <ion-col size="6" class='ion-text-center'>
-                    <h3>{{character.name}}</h3>
-                </ion-col>
-                <ion-col class="ion-text-right" size="3">
-                    <h3><ion-icon class="characterMoveIcon" icon="assets/icon/move.svg"></ion-icon> {{character.move}}</h3>
-                </ion-col>
-            </ion-row>
-            <ion-row>
-                <ion-col class="ion-text-center">
-                    <ion-text>{{character.special}}</ion-text>
-                </ion-col>
-            </ion-row>
-            <ion-row>
-                <ion-col>
-                    <graphic-healthbar 
-                        :maxHealth="character.health || 1" 
-                        @heal="showHealAnimation" 
-                        @damage="showDamageAnimation"></graphic-healthbar>
-                </ion-col>
-            </ion-row>
-
-
-
-            <div id='ally-container'>
-                <ion-row v-for='char,index in character.extraCharacters' v-bind:key='index'>
-                    <ion-grid>
-                        <ion-row>
-                            <ion-col size="3">
-                                <ion-icon class="characterTypeIcon" :icon="'assets/icon/' + characterType(char.isRanged) + '.svg'"></ion-icon>
-                            </ion-col>
-                            <ion-col size="6">
-                                <h3>{{char.name}}</h3>
-                            </ion-col>
-                            <ion-col size="3">
-
-                            </ion-col>
-                        </ion-row>
-                        <ion-row>
-                            <ion-col>
-                                <graphic-healthbar 
-                                    :maxHealth="char.health || 1" 
-                                    @heal="showHealAnimation" 
-                                    @damage="showDamageAnimation"></graphic-healthbar>
-                            </ion-col>
-                        </ion-row>
-                    </ion-grid>
-                </ion-row>
-            </div>
-            <ion-row v-if="character.sidekick.quantity > 0" class='sidekick-container'>
-                <ion-col size="3">
-                    <ion-icon class="characterTypeIcon" :icon="'assets/icon/' + characterType(character.sidekick.isRanged) + '.svg'"></ion-icon>
-                </ion-col>
-                <ion-col>
-                    <h3>{{character.sidekick.name}}</h3>
-                </ion-col>
-                <ion-col size="3"></ion-col>
-            </ion-row>
-            <ion-row v-if="character.sidekick.quantity > 0">
-                <ion-col>
-                    <graphic-healthbar 
-                        v-if="character.sidekick.quantity == 1"
-                        :maxHealth="character.sidekick.health || 1" 
-                        @heal="showHealAnimation" 
-                        @damage="showDamageAnimation"></graphic-healthbar>
-                        
-                    <sidekick-toggles v-else :count="character.sidekick.quantity"></sidekick-toggles>
-                </ion-col>
-            </ion-row>
+        <ion-grid style='height:50vh; overflow-y:scroll;'>
             <ion-row v-if="hasruleCards">
                 <ion-col>
                     <ion-button expand="block" size="small" @click='visibleHand="rules"'>View Rule Cards</ion-button>
                 </ion-col>
             </ion-row>
+            <ion-row>
+                <ion-col>                    
+                    <character-slider 
+                        :allCharacters="allCharacters"
+                        @heal="showHealAnimation"
+                        @damage="showDamageAnimation">
+                    </character-slider>
+                </ion-col>
+            </ion-row>
         </ion-grid>
 
         <ion-grid>
-            <ion-row>
-                <ion-col v-if="hasruleCards && pinnedRuleCard != null && pinnedRuleCard != undefined">
-
+            <ion-row id='pinned-rule-card' v-if="hasruleCards && pinnedRuleCard != null && pinnedRuleCard != undefined">
+                <ion-col>
                     <card
                         :scale="0.8"
                         :card="pinnedRuleCard"
@@ -181,20 +117,23 @@
 
 <script lang="ts">
 import { IonContent, IonHeader, IonPage, IonToolbar, IonBackButton, IonButtons, IonGrid, IonRow, IonCol, 
-            IonButton, modalController, IonIcon, IonTitle, IonText, loadingController} from '@ionic/vue';
+            IonButton, modalController, IonIcon, IonTitle } from '@ionic/vue';
 import { defineComponent, ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import StorageService from "@/services/storage.service";
 import Card from "@/components/Card.vue";
 import ViewCardModal from '@/components/ViewCardModal.vue';
-import GraphicHealthbar from "@/components/GraphicHealthbar.vue";
 import HealAnimation from "@/components/effects/Heal.vue";
-import SidekickToggles from "@/components/ui/SidekickToggles.vue";
+import CharacterSlider from "@/components/ui/CharacterSlider.vue"
 
 import { addCircleOutline, removeCircleOutline } from "ionicons/icons"
 
 import { Capacitor } from '@capacitor/core';
 import DownloadService from '@/services/download.service';
+import CardApiService from '@/services/cardapi.service';
+
+import { Deck } from "@/types/Decks";
+
 
 export default defineComponent({
   name: 'Game',
@@ -210,12 +149,10 @@ export default defineComponent({
     IonCol,
     IonButton,
     Card,
-    GraphicHealthbar,
     HealAnimation,
-    SidekickToggles,
+    CharacterSlider,
     IonTitle,
     IonIcon,
-    IonText
   },
 
   setup() {
@@ -232,29 +169,35 @@ export default defineComponent({
     const cardSheet = ref("");
     id.value = route.params.id as string;
 
+    
     const loadCardSheet = async () => {
         cardSheet.value = Capacitor.convertFileSrc(await DownloadService.loadCardImages(id.value));
+        
+        document.body.style.setProperty("--cards", 'url(' + cardSheet.value + ')');
         console.log(cardSheet.value);
     }
 
     if( Capacitor.isNativePlatform() ){
         loadCardSheet();
     }
-    
-    const character = ref<Record<string,any>>({
-      name: "",
-      health: 0,
-      extraCharacters:[],
-      sidekick: {
-        quantity: 0,
-        health: 0,
-        name: ""
-      },
-      color: "",
-      cards: []
-    });
+    else{
+        cardSheet.value = CardApiService.cardImagesBaseURL(id.value);
+    }
 
-    const sidekicks = ref<boolean[]>([]);
+    const slideOpts = {
+      initialSlide: 0,
+      speed: 400
+    };
+    
+    const character = ref<Deck>();
+
+    const loadCharacter = async () => {
+      console.log("Load character " + id.value);
+      character.value = await storage.get("character-" + id.value) as Deck;
+      console.log("Character: ", character.value);
+    }
+    loadCharacter();
+
     const counter = ref(0);
     const showCounter = ref(false);
     const counterLabel = ref("Counter");
@@ -265,8 +208,8 @@ export default defineComponent({
     const hand = ref<Record<string,any>[]>([]);
     const discard = ref<Record<string,any>[]>([]);
 
-    return { router, character, storage, id, cards, hand, discard, startingHandSize, visibleHand, handFaceUp, sidekicks,
-        addCircleOutline, removeCircleOutline, counter, counterLabel, showCounter, loader, cardSheet};
+    return { router, character, storage, id, cards, hand, discard, startingHandSize, visibleHand, handFaceUp,
+        addCircleOutline, removeCircleOutline, counter, counterLabel, showCounter, loader, cardSheet, slideOpts};
   },
 
   async mounted(){
@@ -283,13 +226,6 @@ export default defineComponent({
 
       console.log(this.hand);
 
-    //   this.loader = await loadingController.create({
-    //       cssClass: 'deck-loader',
-    //       message: 'Loading deck...',
-    //       duration: 30000,
-    //     });
-        
-    //   await this.loader.present();
   },
 
 
@@ -317,40 +253,52 @@ export default defineComponent({
           let cardCount = 0;
 
           let cardIndex = 0;
+          
+          if(this.character != undefined){
+            if(this.character.cards != undefined){
+                for(let i = 0; i < this.character.cards.length; i++){
+                    for(let count = 0; count < this.character.cards[i].quantity; count++){
+                        const temp: Record<string,any> = Object.assign({}, this.character.cards[i]);
+                        temp.id = cardCount;
+                        temp.cardIndex = cardIndex;
+                        this.cards.push(temp);
+                        cardCount++;
+                    }
+                    const tSuggestions = this.checkCardForCounters(this.character.cards[i]);
+                    counterSuggestions.push(...tSuggestions);
+                    cardIndex++;
+                }
+            }
+            cardIndex++; //for the main hero card
 
-          for(let i = 0; i < this.character.cards.length; i++){
-              for(let count = 0; count < this.character.cards[i].quantity; count++){
-                  const temp = Object.assign({}, this.character.cards[i]);
-                  temp.id = cardCount;
-                  temp.cardIndex = cardIndex;
-                  this.cards.push(temp);
-                  cardCount++;
-              }
-            const tSuggestions = this.checkCardForCounters(this.character.cards[i]);
-            counterSuggestions.push(...tSuggestions);
-            cardIndex++;
-          }
-          cardIndex++; //for the main hero card
+            if(this.character.extraCharacters != undefined){
+                for(let i = 0; i < this.character.extraCharacters.length; i++){
+                    this.character.extraCharacters[i].cardIndex = cardIndex;
+                    cardIndex++;
+                }
+            }
 
-          for(let i = 0; i < this.character.extraCharacters.length; i++){
-              this.character.extraCharacters[i].cardIndex = cardIndex;
-              cardIndex++;
+            if(this.character.ruleCards != undefined){
+                for(let i = 0; i < this.character.ruleCards.length; i++){
+                    this.character.ruleCards[i].id = i;
+                    this.character.ruleCards[i].pinned = false;
+                    this.character.ruleCards[i].cardIndex = cardIndex;
+                    const tSuggestions = this.checkCardForCounters(this.character.ruleCards[i]);
+                    counterSuggestions.push(...tSuggestions);
+                    cardIndex++;
+                }
+            }
+
+            counterSuggestions.push(...this.checkStringForCounters(this.character.hero.specialAbility));
+            
           }
 
-          for(let i = 0; i < this.character.ruleCards.length; i++){
-              this.character.ruleCards[i].id = i;
-              this.character.ruleCards[i].pinned = false;
-              this.character.ruleCards[i].cardIndex = cardIndex;
-            const tSuggestions = this.checkCardForCounters(this.character.ruleCards[i]);
-            counterSuggestions.push(...tSuggestions);
-            cardIndex++;
-          }
+
             this.shuffleDeck();
             this.shuffleHand();
 
-            counterSuggestions.push(...this.checkStringForCounters(this.character.special));
             counterSuggestions = counterSuggestions.filter((s) => { 
-                const common = ["BOOST", "ACTION", "LARGE", "SEPARATE"].includes(s);
+                const common = this.commonLabels.includes(s);
                 return s.constructor == String && !common;
             });
             if(counterSuggestions.length > 0){
@@ -441,15 +389,16 @@ export default defineComponent({
       },
 
       viewCard: async function(card: any, origin: string, ruleCard: boolean){
+
         const modal = await modalController
             .create({
                 component: ViewCardModal,
                 cssClass: 'view-card',
                 componentProps: {
+                    cardback: this.cardSheet,
                     card: card,
                     faceUp: true,
                     origin: origin,
-                    color: this.character.color,
                     ruleCard: ruleCard || false
                 },
             });
@@ -470,7 +419,8 @@ export default defineComponent({
                 }
             }
 
-            if(data.data.played && data.data.origin == "rules"){
+
+            if(data.data.played && data.data.origin == "rules" && this.character != undefined && this.character.ruleCards != undefined){
                 for(let i = 0; i < this.character.ruleCards.length; i++){
                     if(data.data.pinned && this.character.ruleCards[i].id != data.data.cardId){
                         this.character.ruleCards[i].pinned = false;
@@ -489,46 +439,91 @@ export default defineComponent({
       },
 
       characterType(isRanged: boolean){
-           return isRanged? "range" : "melee";
+          console.log("Character type isRanged? ", isRanged);
+           return isRanged? "ranged" : "melee";
       }
 
   },
 
   computed: {
+      
+    allCharacters: function(): any {
+      if(this.character == undefined){
+        return [];
+      }
+
+      const mainChar = {
+        hero: this.character.hero,
+        sidekick: this.character.sidekick
+      }
+
+      const allChars = [];
+      allChars.push(mainChar);
+
+      if(this.character.extraCharacters != undefined){
+        for(let i = 0; i < this.character.extraCharacters.length; i++){
+          allChars.push(this.character.extraCharacters[i]);
+        }
+      }
+
+      return allChars;
+    },
+
+      commonLabels: function(): string[]{
+          const characterSpecific: string[] = [];
+          if(this.character != undefined){
+            characterSpecific.push(this.character.hero.name);
+            if(this.character.extraCharacters != undefined){
+                characterSpecific.push(...this.character.extraCharacters.map((c: any) => { return c.name }));
+            }
+          }
+          return ["BOOST", "ACTION", "LARGE", "SEPARATE", "IMMEDIATELY", "AFTER", "DURING", "COMBAT", ...characterSpecific];
+      },
+
       hasruleCards: function(): boolean{
           return this.character != undefined && this.character.ruleCards != undefined && this.character.ruleCards.length > 0;
       }, 
 
       pinnedRuleCard: function(): any {
-          return this.character.ruleCards.filter((c: any) => { return c.pinned == true; })[0];
+          if(this.character != undefined && this.character.ruleCards != undefined){
+            return this.character.ruleCards.filter((c: any) => { return c.pinned == true; })[0];
+          }
+          
+          return null;
       },
 
       heroType: function(): string {
-          return this.character.isRanged? "range" : "melee";
+          if(this.character != undefined && this.character.hero != undefined){
+            return this.character.hero.isRanged? "range" : "melee";
+          }
+          
+          return "melee";
       },
       
-
     cardCount: function(): number{
-        let count = 1;
+      let count = 0;
+      if(this.character != undefined){
+        count++;
         if(this.character.ruleCards != undefined){
-            count += this.character.ruleCards.length; 
+          count += this.character.ruleCards.length; 
         }
         if(this.character.extraCharacters != undefined){
-            count += this.character.extraCharacters.length;
+          count += this.character.extraCharacters.length;
         }
         if(this.character.cards != undefined){
-            count += this.character.cards.length;
+          count += this.character.cards.length;
         }
+      }
 
-        return count;
-        },
+      return count;
+    },
       
     cardStyles: function(): Record<string,any> {
 
       if(this.character != null){
         return {
-          "--characterBackground": 'url(' + this.character.cardback + ')',
-          "--characterColor": this.character.color,
+          "--characterBackground": 'url(' + this.character.appearance.cardbackUrl + ')',
+          "--characterColor": this.character.appearance.highlightColour,
           "--cards": 'url(' + this.cardSheet + ')',
           "--cardCount": this.cardCount
         };
@@ -539,7 +534,7 @@ export default defineComponent({
   },
 
   watch: {
-    characterStyles(){      
+    cardStyles(){    
       for(const key in this.cardStyles) {
         document.body.style.setProperty(key, this.cardStyles[key]);
       }
@@ -565,10 +560,7 @@ ion-content {
     font-size: .6em;
 }
 
-#character-container h3, #ally-container h3, .sidekick-container h3{
-    margin-top:0!important;
-    text-align:center;
-}
+
 .hand-drawer .empty {
     height: 8rem;
     text-align: center;
@@ -736,18 +728,8 @@ div#damage-animation {
   transition: transform 1s;
 }
 
-
-
-ion-icon.characterTypeIcon {
-    font-size: 6rem;
-    height: 2rem;
-    display: inline-block;
-}
-
-.character-info-wrapper h3 {
-    display: inline-block;
-    vertical-align: top;
-    padding: 0.2rem 0.8rem 0;
+#pinned-rule-card {
+    margin-top:-3rem;
 }
 
 </style>

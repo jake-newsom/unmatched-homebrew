@@ -8,6 +8,7 @@
 import { IonApp, IonRouterOutlet } from '@ionic/vue';
 import { defineComponent } from 'vue';
 import { ScreenOrientation } from "@ionic-native/screen-orientation";
+import { Capacitor } from '@capacitor/core';
 
 
 export default defineComponent({
@@ -18,7 +19,9 @@ export default defineComponent({
   }, 
 
   mounted(){
-    ScreenOrientation.lock(ScreenOrientation.ORIENTATIONS.PORTRAIT_PRIMARY);
+    if(Capacitor.isNativePlatform()){
+      ScreenOrientation.lock(ScreenOrientation.ORIENTATIONS.PORTRAIT_PRIMARY);
+    }
   }
 });
 </script>

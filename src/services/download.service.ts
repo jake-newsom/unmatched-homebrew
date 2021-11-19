@@ -1,5 +1,5 @@
-import { isPlatform } from '@ionic/vue';
 import { Http, HttpDownloadFileResult } from "@capacitor-community/http";
+import { Capacitor } from "@capacitor/core";
 import { Filesystem, Directory } from "@capacitor/filesystem"
 
 /**
@@ -43,8 +43,10 @@ const DownloadService = {
         return "";
     },
 
-    async startDownload(url: string, filename?: string){
-
+    async startDownload(url: string, filename?: string): Promise<HttpDownloadFileResult>{
+        if(!Capacitor.isNativePlatform()){
+            Promise.resolve();
+        }
         /**
          * If no filename was provided, parse it from the URL.
          */
@@ -61,9 +63,10 @@ const DownloadService = {
         };
 
         
-        const response: HttpDownloadFileResult = await Http.downloadFile(options);
-        console.log(response);
-        return response;
+        return Http.downloadFile(options)
+            .then(response => {
+                return response;
+            });
     },
 
     /**

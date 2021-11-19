@@ -4,6 +4,7 @@ import Home from '../views/Home.vue';
 import Character from '../views/Character.vue';
 import Editor from '../views/Editor.vue';
 import Game from '../views/Game.vue';
+import Search from "../views/Search.vue";
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -14,6 +15,11 @@ const routes: Array<RouteRecordRaw> = [
     path: '/home',
     name: 'Home',
     component: Home
+  },
+  {
+    path: '/search',
+    name: "Search",
+    component: Search
   },
   {
     path: '/character/:id',
