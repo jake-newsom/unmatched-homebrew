@@ -16,7 +16,14 @@
     </ion-header>
     
     <ion-content :fullscreen="true" :style='cardStyles' v-if="character != undefined">
-        <img style="display:none!important;" :src="cardSheet"/>
+      
+        <div id="searching-wrapper" v-if="loadingImages">
+            <div class="ball-loader">
+                <div class="ball-loader-ball ball1"></div>
+                <div class="ball-loader-ball ball2"></div>
+                <div class="ball-loader-ball ball3"></div>
+            </div>
+        </div>
       <ion-header collapse="condense">
         <ion-toolbar>
             <ion-buttons slot="start">
@@ -169,12 +176,25 @@ export default defineComponent({
     const cardSheet = ref("");
     id.value = route.params.id as string;
 
+
+    const loadingImages = ref(false);
     
     const loadCardSheet = async () => {
-        cardSheet.value = Capacitor.convertFileSrc(await DownloadService.loadCardImages(id.value));
+        loadingImages.value = true;
+        const filepath = await DownloadService.loadCardImages(id.value);
+        console.log("file path is " + filepath);
+
+        cardSheet.value = Capacitor.convertFileSrc(filepath);
+        console.log("cardsheet value: " + cardSheet.value);
+
+        const img = new Image();
+        img.onload = () => {
+            document.body.style.setProperty("--cards", 'url(' + cardSheet.value + ')');
+            loadingImages.value = false;
+        }
+        img.src = cardSheet.value;
+
         
-        document.body.style.setProperty("--cards", 'url(' + cardSheet.value + ')');
-        console.log(cardSheet.value);
     }
 
     if( Capacitor.isNativePlatform() ){
@@ -208,7 +228,7 @@ export default defineComponent({
     const hand = ref<Record<string,any>[]>([]);
     const discard = ref<Record<string,any>[]>([]);
 
-    return { router, character, storage, id, cards, hand, discard, startingHandSize, visibleHand, handFaceUp,
+    return { loadingImages, router, character, storage, id, cards, hand, discard, startingHandSize, visibleHand, handFaceUp,
         addCircleOutline, removeCircleOutline, counter, counterLabel, showCounter, loader, cardSheet, slideOpts};
   },
 
@@ -732,4 +752,61 @@ div#damage-animation {
     margin-top:-3rem;
 }
 
+.ball-loader {
+  width: 100px;
+  height: 23.3333333333px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-50%);
+}
+
+.ball-loader-ball {
+  will-change: transform;
+  height: 23.3333333333px;
+  width: 23.3333333333px;
+  border-radius: 50%;
+  background-color: var(--ion-color-primary);
+  position: absolute;
+  -webkit-animation: grow 1s ease-in-out infinite alternate;
+          animation: grow 1s ease-in-out infinite alternate;
+}
+.ball-loader-ball.ball1 {
+  left: 0;
+  transform-origin: 100% 50%;
+}
+.ball-loader-ball.ball2 {
+  left: 50%;
+  transform: translateX(-50%) scale(1);
+  -webkit-animation-delay: 0.33s;
+          animation-delay: 0.33s;
+}
+.ball-loader-ball.ball3 {
+  right: 0;
+  -webkit-animation-delay: 0.66s;
+          animation-delay: 0.66s;
+}
+
+@-webkit-keyframes grow {
+  to {
+    transform: translateX(-50%) scale(0);
+  }
+}
+
+@keyframes grow {
+  to {
+    transform: translateX(-50%) scale(0);
+  }
+}
+
+div#searching-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--ion-background-color);
+    opacity: 0.8;
+    z-index: 150;
+}
 </style>

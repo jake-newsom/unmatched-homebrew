@@ -50,7 +50,7 @@ const CardApiService = {
         const deck = response.data;
 
         if(Capacitor.isNativePlatform()){
-            this.downloadCardImages(id);
+            await this.downloadCardImages(id);
         }
 
         const character = {
@@ -71,7 +71,9 @@ const CardApiService = {
 
     async downloadCardImages(id: string){
         const url = this.cardImagesBaseURL(id);
-        DownloadService.startDownload(url, id + ".jpg");
+        console.log("start downloading cards for " + id);
+        const data = await DownloadService.startDownload(url, id + ".png");
+        console.log("finished downloading cards for " + id);
     }
 
 

@@ -145,7 +145,7 @@ export default defineComponent({
             
             this.downloading.push(id);
 
-            CardApiService.getDeck(id)
+            const result = CardApiService.getDeck(id)
                 .then(character => {
                     this.saveCharacter(character);
                 })

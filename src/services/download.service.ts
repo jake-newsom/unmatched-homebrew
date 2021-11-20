@@ -1,6 +1,7 @@
 import { Http, HttpDownloadFileResult } from "@capacitor-community/http";
 import { Capacitor } from "@capacitor/core";
 import { Filesystem, Directory } from "@capacitor/filesystem"
+import CardApiService from "./cardapi.service";
 
 /**
  * Really only necessary for Android. 
@@ -30,6 +31,9 @@ const DownloadService = {
     },
 
     async loadCardImages(id: string): Promise<string>{
+        if(!Capacitor.isNativePlatform()){
+            return CardApiService.cardImagesBaseURL(id);
+        }
         try {
             const ret = await Filesystem.getUri({
                 path:"/" + id + ".png",
@@ -63,10 +67,8 @@ const DownloadService = {
         };
 
         
-        return Http.downloadFile(options)
-            .then(response => {
-                return response;
-            });
+        const dl = await Http.downloadFile(options);
+        return dl;
     },
 
     /**
