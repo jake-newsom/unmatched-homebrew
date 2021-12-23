@@ -11,11 +11,23 @@
     
     <ion-content :fullscreen="true">
       <div class='ion-padding' id="search-wrapper" slot="fixed">
-        <h1 id='header'>Search Decks</h1>       
-        <ion-item style='margin-bottom:0;'>
-            <ion-label position="stacked">Search for...</ion-label>
-            <ion-input @keyup="startTriggerTimer" v-model="searchQuery"></ion-input>
-        </ion-item>
+        <h1 id='header'>Search Decks</h1>  
+        <ion-grid>
+          <ion-row>
+            <ion-col size="11">  
+              <ion-item style='margin-bottom:0;'>
+                  <ion-label position="stacked">Search for...</ion-label>
+                  <ion-input @keyup="startTriggerTimer" v-model="searchQuery"></ion-input>
+              </ion-item>
+            </ion-col>
+            <ion-col size="1">
+              <ion-icon size="large" :icon="optionsOutline" @click="showOptions=!showOptions"></ion-icon>
+            </ion-col>
+          </ion-row>
+          <ion-row v-if="showOptions">
+            Options
+          </ion-row>
+        </ion-grid>   
       </div>
       <div id="container">   
           <div id="searching-wrapper" v-if="searching">
@@ -25,11 +37,10 @@
                 <div class="ball-loader-ball ball3"></div>
             </div>
           </div>
-         
+
         <ion-list v-if="characters != undefined && characters.length > 0">
           <ion-item v-for="character,index in characters" 
-            :key="character.id" 
-            @click="importCharacter(character.version_id)" >
+            :key="character.id">
 
             <div class='characterItem ion-padding' 
                 :class="{
@@ -44,8 +55,9 @@
               <div class='character-item-wrapper ion-padding' >
                 <span class='character-name'>{{character.name}}</span>
                 <span class='author-name'>by {{character.user}}</span><br/>
-                <ion-icon v-if="!character.downloaded" :icon="cloudDownloadOutline" size="large" color="black"></ion-icon>
+                <ion-icon v-if="!character.downloaded" :icon="cloudDownloadOutline" @click="importCharacter(character.version_id)" size="large" color="black"></ion-icon>
                 <span v-else class='downloaded-label'>Saved</span>
+                <ion-icon :icon="informationCircleOutline" @click="previewCards(character)" size="large" color="black"></ion-icon>
               </div>
               <div class="deco" :style="{ backgroundColor: character.deck_data.appearance.highlightColour }"></div>
               <div class='card flip-in-ver-left' :style="{ '--animation-order':index, backgroundImage: 'url(' + character.deck_data.appearance.cardbackUrl + ')' }"></div>
@@ -53,6 +65,18 @@
 
           </ion-item>
         </ion-list>
+
+        <ion-infinite-scroll
+        @ionInfinite="loadData($event)" 
+        threshold="500px" 
+        id="infinite-scroll"
+        :disabled="infiniteScrollDisabled"
+        >
+          <ion-infinite-scroll-content
+            loading-spinner="bubbles"
+            loading-text="Loading more...">
+          </ion-infinite-scroll-content>
+        </ion-infinite-scroll>
       </div>
 
 
@@ -62,13 +86,14 @@
 
 <script lang="ts">
 import { IonContent, IonHeader, IonPage, IonList, IonItem, IonInput, IonIcon,
-    IonLabel, IonToolbar, IonBackButton, IonButtons } from '@ionic/vue';
-import { addOutline,trashOutline, createOutline, cloudDownloadOutline, reloadOutline } from 'ionicons/icons';
+    IonLabel, IonToolbar, IonBackButton, IonButtons, IonGrid, IonRow, IonCol, IonInfiniteScroll, IonInfiniteScrollContent, modalController } from '@ionic/vue';
+import { addOutline,trashOutline, createOutline, cloudDownloadOutline, reloadOutline, informationCircleOutline, thumbsUpOutline, optionsOutline } from 'ionicons/icons';
 import { defineComponent, ref } from 'vue';
 
 
 import StorageService from "@/services/storage.service";
 import CardApiService from "@/services/cardapi.service";
+import PreviewCardsModal from "@/components/modals/PreviewCardsModal.vue"
 
 export default defineComponent({
   name: 'Search',
@@ -83,7 +108,12 @@ export default defineComponent({
     IonIcon,
     IonToolbar,
     IonBackButton,
-    IonButtons
+    IonButtons,
+    IonGrid,
+    IonRow,
+    IonCol,
+    IonInfiniteScroll,
+    IonInfiniteScrollContent
   },
 
   setup() {
@@ -94,39 +124,62 @@ export default defineComponent({
 
     const characters = ref<any[]>([]);
     const searchQuery = ref("");
+    const currentPage = ref(1);
 
 
     const searchTrigger = ref<any>();
     const searching = ref(false);
+    const showOptions = ref(false);
+    const infiniteScrollDisabled = ref(false);
     const downloading = ref<string[]>([]);
 
     const myCharacters = ref<string[]>([]);
 
 
     const loadCharacters = async () => {
-        console.log("Load characters");
         myCharacters.value = await storage.get("characterIds") as string[] || [];
-        console.log(myCharacters.value);
     }
 
     loadCharacters();
 
     return { 
         cloudDownloadOutline, myCharacters, reloadOutline,
-        characters, addOutline, storage, trashOutline, createOutline, searchQuery, searchTrigger, searching, downloading};
+        characters, addOutline, storage, trashOutline, createOutline,
+        informationCircleOutline, thumbsUpOutline,
+        searchQuery, searchTrigger,
+        searching, downloading, optionsOutline, showOptions, currentPage, infiniteScrollDisabled};
   },
 
   methods: {
 
+    loadData(ev: CustomEvent) {
+      this.currentPage += 1;
+      this.getNextPage();
+
+      const target = ev.target as HTMLIonInfiniteScrollElement;
+      target.complete();
+    },
+
     startTriggerTimer(){
         clearInterval(this.searchTrigger);
-        this.searchTrigger = setTimeout( this.search, 1000);
+        this.searchTrigger = setTimeout(() => {
+          this.searching = true;
+          this.currentPage = 1;
+          this.infiniteScrollDisabled = false;
+          this.search();
+        } , 1000);
     },
 
     search(){
-        this.searching = true;
-        CardApiService.searchDecks(this.searchQuery.replace(/\s/g, '+'))
+        CardApiService.searchDecks(this.searchQuery.replace(/\s/g, '+'), this.currentPage)
             .then(result => {
+                console.log(result);
+                if(result.length < 10){
+                  this.infiniteScrollDisabled = true;
+                }
+                else{
+                  this.infiniteScrollDisabled = false;
+                }
                 this.characters = result.map((c: any) => {
                     c.downloaded = this.myCharacters.includes(c.version_id);
                     return c;
@@ -138,6 +191,29 @@ export default defineComponent({
             .finally(() => {
                 this.searching = false;
             })
+    },
+
+    getNextPage(){
+        CardApiService.searchDecks(this.searchQuery.replace(/\s/g, '+'), this.currentPage)
+            .then(result => {
+                if(result.length < 10){
+                  this.infiniteScrollDisabled = true;
+                }
+                else{
+                  this.infiniteScrollDisabled = false;
+                }
+                this.characters = [...this.characters, ...result.map((c: any) => {
+                    c.downloaded = this.myCharacters.includes(c.version_id);
+                    return c;
+                })];
+            })
+            .catch(err => {
+                console.log(err);
+            })
+            .finally(() => {
+                this.searching = false;
+            })
+
     },
 
     async importCharacter(id: string){
@@ -189,7 +265,26 @@ export default defineComponent({
       return '#' + color.replace(/^#/, '').replace(/../g, color =>
         ('0' + Math.min(255, Math.max(0, parseInt(color, 16) + amount)).toString(16)).substr(-2));
     },
+
+    async previewCards(character: any){
+      console.log(character);
+      
+      const modal = await modalController
+          .create({
+              component: PreviewCardsModal,
+              cssClass: 'view-card-list',
+              componentProps: {
+                  deck: character.deck_data
+              },
+          });
+      modal.present();
+    }
     
+  },
+  
+  mounted(){
+    this.searching = true;
+    this.search();
   }
 });
 </script>
@@ -519,5 +614,9 @@ div#searching-wrapper {
     background: var(--ion-background-color);
     opacity: 0.8;
     z-index: 10;
+}
+
+.character-item-wrapper ion-icon {
+    padding: 0 1rem;
 }
 </style>

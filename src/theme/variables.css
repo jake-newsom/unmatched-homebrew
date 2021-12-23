@@ -19,13 +19,21 @@ http://ionicframework.com/docs/theming/ */
 @font-face {   
   font-family: 'Bebas';    
   src: url('../../public/assets/fonts/BebasNeue-Regular.ttf');
-  font-weight: 400
+  font-weight: 400;
 }
 
 
 
 /** Ionic CSS Variables **/
 :root {
+
+  --um-attack-color: #dc3034;
+  --um-versatile-color: #6c4e8d;
+  --um-defense-color: #2c76ac;
+  --um-scheme-color: #fcbd71;
+
+
+
   --ion-background-color: #434343;
   --ion-toolbar-color	: #e9cab3;
   --ion-text-color	: #fff;

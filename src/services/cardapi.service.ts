@@ -63,8 +63,8 @@ const CardApiService = {
     },
 
 
-    async searchDecks(query: string){
-        const response: any = await this.get("decks?sortBy=likes&sortDesc=true&perPage=30&currentPage=1&filter=" + query);
+    async searchDecks(query: string, page: number){
+        const response: any = await this.get("decks?sortBy=likes&sortDesc=true&perPage=10&filter=" + query + "&currentPage=" + page);
         return response.data.decks;
     },
 
