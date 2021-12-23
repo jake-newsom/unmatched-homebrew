@@ -17,10 +17,11 @@
             }" 
             v-bind:key="character.id">
 
-            <ion-item class='characterItem ion-padding'
-              :router-link="'/character/' + character.id">
+            <ion-item class='characterItem ion-padding'>
               <div class='character-item-wrapper ion-padding' >
-                <span class='character-name'>{{character.hero.name}}</span>
+                <span class='character-name'>{{character.hero.name}}</span><br/>
+                <ion-icon :icon="playOutline" @click='openCharacter(character.id)' size="large" ></ion-icon>
+                <ion-icon :icon="informationCircleOutline" @click="previewCards(character)" size="large" ></ion-icon>
               </div>
               <div class="deco" :style="{ backgroundColor: character.appearance.highlightColour }"></div>
               <div class='card flip-in-ver-left' :style="{ '--animation-order':index, backgroundImage: 'url(' + character.appearance.cardbackUrl + ')' }"></div>
@@ -50,16 +51,19 @@
 
 <script lang="ts">
 import { IonContent, IonHeader, IonPage,IonList, IonItemSliding, IonItem, 
-    IonItemOptions, IonItemOption, IonIcon, IonFab, IonFabButton, alertController, loadingController} from '@ionic/vue';
-import { addOutline,trashOutline, createOutline } from 'ionicons/icons';
+    IonItemOptions, IonItemOption, IonIcon, IonFab, IonFabButton, alertController, loadingController, modalController} from '@ionic/vue';
+import { addOutline,trashOutline, createOutline, informationCircleOutline, playOutline } from 'ionicons/icons';
 import { defineComponent, ref } from 'vue';
 
 
 import StorageService from "@/services/storage.service";
 import CardApiService from "@/services/cardapi.service";
 import DownloadService from '@/services/download.service';
+
+import PreviewCardsModal from "@/components/modals/PreviewCardsModal.vue"
 import { Capacitor } from '@capacitor/core';
 import { Deck } from '@/types/Decks';
+import { useRouter } from 'vue-router';
 
 
 export default defineComponent({
@@ -80,6 +84,7 @@ export default defineComponent({
 
   setup() {
     const storage = StorageService;
+    const router = useRouter();
     storage.init();
 
     CardApiService.init();
@@ -88,7 +93,7 @@ export default defineComponent({
 
     const currentDeckVersion = ref(1);
 
-    return { characters, addOutline, storage, trashOutline, createOutline, currentDeckVersion};
+    return { router, characters, addOutline, storage, trashOutline, createOutline, currentDeckVersion, informationCircleOutline, playOutline};
   },
 
   ionViewDidEnter(){
@@ -201,7 +206,25 @@ export default defineComponent({
         console.log("LOaded: ", this.characters);
       }
     }, 
+    
+    async previewCards(character: any){
+      console.log(character);
+      
+      const modal = await modalController
+          .create({
+              component: PreviewCardsModal,
+              cssClass: 'view-card-list',
+              componentProps: {
+                  deck: character
+              },
+          });
+      modal.present();
+    },
+    
 
+    openCharacter(id: string){
+      this.router.push('/character/' + id);
+    },
 
     shadeColor(color: string, amount: number) {
       return '#' + color.replace(/^#/, '').replace(/../g, color =>
@@ -276,6 +299,13 @@ ion-item.characterItem .card{
     min-height:90px;
     border-radius: 5px;
     --padding-bottom:0!important;
+}
+
+
+.character-item-wrapper ion-icon {
+    margin-top: 0.8rem;
+    padding: 0 1rem;
+    color:black;
 }
 
 ion-item-sliding {

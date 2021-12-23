@@ -124,7 +124,7 @@
 
 <script lang="ts">
 import { IonContent, IonHeader, IonPage, IonToolbar, IonBackButton, IonButtons, IonGrid, IonRow, IonCol, 
-            IonButton, modalController, IonIcon, IonTitle } from '@ionic/vue';
+            IonButton, modalController, IonIcon, IonTitle, alertController } from '@ionic/vue';
 import { defineComponent, ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import StorageService from "@/services/storage.service";
@@ -222,6 +222,7 @@ export default defineComponent({
     const showCounter = ref(false);
     const counterLabel = ref("Counter");
     const loader = ref<any>(null);
+    const leaveConfirmed = ref(false);
 
 
     const cards = ref<Record<string,any>[]>([]);
@@ -229,7 +230,7 @@ export default defineComponent({
     const discard = ref<Record<string,any>[]>([]);
 
     return { loadingImages, router, character, storage, id, cards, hand, discard, startingHandSize, visibleHand, handFaceUp,
-        addCircleOutline, removeCircleOutline, counter, counterLabel, showCounter, loader, cardSheet, slideOpts};
+        addCircleOutline, removeCircleOutline, counter, counterLabel, showCounter, loader, cardSheet, slideOpts, leaveConfirmed};
   },
 
   async mounted(){
@@ -461,6 +462,29 @@ export default defineComponent({
       characterType(isRanged: boolean){
           console.log("Character type isRanged? ", isRanged);
            return isRanged? "ranged" : "melee";
+      },
+
+      async confirmLeave(){        
+        const alert = await alertController
+          .create({
+            cssClass: 'leave-game-alert',
+            header: 'Leave Game?',
+            message: 'If you leave this game session will be lost. Are you sure you want to leave the game?',
+            buttons: [
+              {
+                text: 'Keep Playing',
+                role: 'cancel'
+              },
+              {
+                text: 'Leave Game',
+                role: 'leave'
+              },
+            ],
+          });
+        await alert.present();
+
+        const { role } = await alert.onDidDismiss();
+        return role == "leave";
       }
 
   },
@@ -558,6 +582,16 @@ export default defineComponent({
       for(const key in this.cardStyles) {
         document.body.style.setProperty(key, this.cardStyles[key]);
       }
+    }
+  },
+
+  async beforeRouteLeave(to, from, next) {
+    console.log("Route leave");
+    if(await this.confirmLeave()){
+      next();
+    }
+    else{
+      next(false);
     }
   }
 

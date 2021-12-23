@@ -145,6 +145,7 @@
 <style scoped>
 .preview-modal-wrapper {
     overflow-y: scroll;
+    color:var(--ion-text-color);
 }
 
 ion-list-header ion-icon {
